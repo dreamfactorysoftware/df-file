@@ -1,0 +1,42 @@
+{
+  "name":        "dreamfactory/df-file",
+  "description": "File service for DreamFactory Platform 2.0",
+  "homepage":    "https://www.dreamfactory.com/",
+  "keywords":    [
+    "dreamfactory",
+    "rest",
+    "api",
+    "file",
+    "blob",
+    "storage"
+  ],
+  "license":     [
+    "Apache-2.0"
+  ],
+  "authors":     [
+    {
+      "name":  "Arif Islam",
+      "email": "arifislam@dreamfactory.com"
+    },
+    {
+      "name":  "Lee Hicks",
+      "email": "leehicks@dreamfactory.com"
+    }
+  ],
+  "require":     {
+    "dreamfactory/df-core": "~0.8.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "@stable"
+  },
+  "autoload":    {
+    "psr-4": {
+      "DreamFactory\\Core\\File\\": "src/"
+    }
+  },
+  "extra":       {
+    "branch-alias": {
+      "dev-develop": "0.1.x-dev"
+    }
+  }
+}
