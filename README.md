@@ -1,14 +1,14 @@
-## DreamFactory File Services
+## DreamFactory File Service
 
-> **Note:** This repository contains the scripting features of the DreamFactory platform. If you want the full DreamFactory platform, visit the main [DreamFactory repository](https://github.com/dreamfactorysoftware/dreamfactory).
+> **Note:** This repository contains the file service features of the DreamFactory platform. If you want the full DreamFactory platform, visit the main [DreamFactory repository](https://github.com/dreamfactorysoftware/dreamfactory).
 
 ## Overview
 
-DreamFactory(™) File Services is a package built on top of the DreamFactory core, and as such retains the requirements of the [df-core](https://github.com/dreamfactorysoftware/df-core). 
+DreamFactory(™) File Service is a package built on top of the DreamFactory core, and as such retains the requirements of the [df-core](https://github.com/dreamfactorysoftware/df-core). 
 
 ## Documentation
 
-Documentation for the file storage features can be found on the [DreamFactory wiki](http://wiki.dreamfactory.com/DreamFactory/Features/Files).
+Documentation for the file service features can be found on the [DreamFactory wiki](http://wiki.dreamfactory.com/DreamFactory/Features/Files).
 
 ## Installation
 
