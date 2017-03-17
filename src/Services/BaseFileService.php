@@ -314,11 +314,12 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
             } elseif (!empty($fileUrl)) {
                 // upload a file from a url, could be expandable zip
                 $tmpName = null;
+                $newFileName = $this->request->input('file_name', '');
                 try {
                     $tmpName = FileUtilities::importUrlFileToTemp($fileUrl);
                     $result = $this->handleFile(
                         $this->folderPath,
-                        '',
+                        $newFileName,
                         $tmpName,
                         '',
                         $extract,
