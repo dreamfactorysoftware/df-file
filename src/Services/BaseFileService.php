@@ -59,7 +59,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     {
         $settings = (array)$settings;
         $settings['verbAliases'] = [
-            Verbs::PUT   => Verbs::POST,
+            Verbs::PUT => Verbs::POST,
         ];
         parent::__construct($settings);
 
@@ -212,6 +212,33 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     }
 
     /**
+     * Searches for files/folders.
+     *
+     * @param string $search
+     *
+     * @return array
+     */
+    protected function doSearch($search)
+    {
+        $found = [];
+        $result = $this->driver->getFolder(
+            $this->container,
+            $this->folderPath,
+            $this->request->getParameterAsBool('include_files', true),
+            $this->request->getParameterAsBool('include_folders', true),
+            $this->request->getParameterAsBool('full_tree', false)
+        );
+
+        foreach ($result as $rs) {
+            if (stripos(basename($rs['path']), $search) !== false) {
+                $found[] = $rs;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
      * Handles GET actions.
      *
      * @return \DreamFactory\Core\Utility\ServiceResponse|StreamedResponse|array
@@ -236,13 +263,18 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
             } elseif ($this->request->getParameterAsBool('include_properties')) {
                 $result = $this->driver->getFolderProperties($this->container, $this->folderPath);
             } else {
-                $result = $this->driver->getFolder(
-                    $this->container,
-                    $this->folderPath,
-                    $this->request->getParameterAsBool('include_files', true),
-                    $this->request->getParameterAsBool('include_folders', true),
-                    $this->request->getParameterAsBool('full_tree', false)
-                );
+                $search = $this->request->getParameter('search');
+                if (!empty($search)) {
+                    $result = $this->doSearch($search);
+                } else {
+                    $result = $this->driver->getFolder(
+                        $this->container,
+                        $this->folderPath,
+                        $this->request->getParameterAsBool('include_files', true),
+                        $this->request->getParameterAsBool('include_folders', true),
+                        $this->request->getParameterAsBool('full_tree', false)
+                    );
+                }
 
                 $asList = $this->request->getParameterAsBool(ApiOptions::AS_LIST);
                 $idField = $this->request->getParameter(ApiOptions::ID_FIELD, static::getResourceIdentifier());
@@ -262,7 +294,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 // stream the file using StreamedResponse, exits processing
                 $response = new StreamedResponse();
                 $service = $this;
-                $response->setCallback(function () use ($service, $download) {
+                $response->setCallback(function () use ($service, $download){
                     $service->streamFile($service->container, $service->filePath, $download);
                 });
 
@@ -494,7 +526,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ) {
+    ){
         $ext = FileUtilities::getFileExtension($dest_name);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, $content);
@@ -558,7 +590,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ) {
+    ){
         $ext = FileUtilities::getFileExtension($source_file);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, '', $source_file);
@@ -645,7 +677,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $clean = false,
         /** @noinspection PhpUnusedParameterInspection */
         $checkExist = false
-    ) {
+    ){
         $out = [];
         if (!empty($data) && ArrayUtils::isArrayNumeric($data)) {
             foreach ($data as $key => $resource) {
@@ -788,10 +820,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $base['paths'] = [
             '/' . $name                     => [
                 'get'    => [
-                    'tags'              => [$name],
-                    'summary'           => 'get' . $capitalized . 'Resources() - List all resources.',
-                    'operationId'       => 'get' . $capitalized . 'Resources',
-                    'responses'         => [
+                    'tags'        => [$name],
+                    'summary'     => 'get' . $capitalized . 'Resources() - List all resources.',
+                    'operationId' => 'get' . $capitalized . 'Resources',
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/ResourceList']
@@ -801,8 +833,8 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'List the resources (folders and files) available in this storage. ',
-                    'parameters'        => [
+                    'description' => 'List the resources (folders and files) available in this storage. ',
+                    'parameters'  => [
                         ApiOptions::documentOption(ApiOptions::AS_LIST),
                         ApiOptions::documentOption(ApiOptions::AS_ACCESS_LIST),
                         ApiOptions::documentOption(ApiOptions::REFRESH),
@@ -841,10 +873,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     ],
                 ],
                 'post'   => [
-                    'tags'              => [$name],
-                    'summary'           => 'create' . $capitalized . 'Content() - Create some folders and/or files.',
-                    'operationId'       => 'create' . $capitalized . 'Content',
-                    'parameters'        => [
+                    'tags'        => [$name],
+                    'summary'     => 'create' . $capitalized . 'Content() - Create some folders and/or files.',
+                    'operationId' => 'create' . $capitalized . 'Content',
+                    'parameters'  => [
                         [
                             'name'        => 'body',
                             'description' => 'Array of folders and/or files.',
@@ -886,7 +918,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'header',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FolderResponse']
@@ -896,13 +928,13 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
+                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                 ],
                 'patch'  => [
-                    'tags'              => [$name],
-                    'summary'           => 'update' . $capitalized . 'ContainerProperties() - Update container properties.',
-                    'operationId'       => 'update' . $capitalized . 'ContainerProperties',
-                    'parameters'        => [
+                    'tags'        => [$name],
+                    'summary'     => 'update' . $capitalized . 'ContainerProperties() - Update container properties.',
+                    'operationId' => 'update' . $capitalized . 'ContainerProperties',
+                    'parameters'  => [
                         [
                             'name'        => 'body',
                             'description' => 'Array of container properties.',
@@ -910,7 +942,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'body',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Folder',
                             'schema'      => ['$ref' => '#/definitions/Folder']
@@ -920,15 +952,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Post body as an array of folder properties.',
+                    'description' => 'Post body as an array of folder properties.',
                 ],
                 'delete' => [
-                    'tags'              => [$name],
-                    'summary'           => 'delete' .
+                    'tags'        => [$name],
+                    'summary'     => 'delete' .
                         $capitalized .
                         'Content() - Delete some container contents.',
-                    'operationId'       => 'delete' . $capitalized . 'Content',
-                    'parameters'        => [
+                    'operationId' => 'delete' . $capitalized . 'Content',
+                    'parameters'  => [
                         [
                             'name'        => 'force',
                             'description' => 'Set to true to force delete on a non-empty folder.',
@@ -942,7 +974,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'query',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FolderResponse']
@@ -952,7 +984,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       =>
+                    'description' =>
                         'Set \'content_only\' to true to delete the sub-folders and files contained, but not the container. ' .
                         'Set \'force\' to true to delete a non-empty folder. ' .
                         'Alternatively, to delete by a listing of sub-folders and files, ' .
@@ -970,12 +1002,12 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     ],
                 ],
                 'get'        => [
-                    'tags'              => [$name],
-                    'summary'           => 'get' .
+                    'tags'        => [$name],
+                    'summary'     => 'get' .
                         $capitalized .
                         'Folder() - List the folder\'s content, including properties.',
-                    'operationId'       => 'get' . $capitalized . 'Folder',
-                    'parameters'        => [
+                    'operationId' => 'get' . $capitalized . 'Folder',
+                    'parameters'  => [
                         [
                             'name'        => 'include_properties',
                             'description' => 'Return any properties of the folder in the response.',
@@ -1012,7 +1044,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'default'     => false,
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FolderResponse']
@@ -1022,15 +1054,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       =>
+                    'description' =>
                         'Use \'include_properties\' to get properties of the folder. ' .
                         'Use the \'include_folders\' and/or \'include_files\' to modify the listing.',
                 ],
                 'post'       => [
-                    'tags'              => [$name],
-                    'summary'           => 'create' . $capitalized . 'Folder() - Create a folder and/or add content.',
-                    'operationId'       => 'create' . $capitalized . 'Folder',
-                    'parameters'        => [
+                    'tags'        => [$name],
+                    'summary'     => 'create' . $capitalized . 'Folder() - Create a folder and/or add content.',
+                    'operationId' => 'create' . $capitalized . 'Folder',
+                    'parameters'  => [
                         [
                             'name'        => 'body',
                             'description' => 'Array of folders and/or files.',
@@ -1072,7 +1104,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'header',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FolderResponse']
@@ -1082,13 +1114,13 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
+                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                 ],
                 'patch'      => [
-                    'tags'              => [$name],
-                    'summary'           => 'update' . $capitalized . 'FolderProperties() - Update folder properties.',
-                    'operationId'       => 'update' . $capitalized . 'FolderProperties',
-                    'parameters'        => [
+                    'tags'        => [$name],
+                    'summary'     => 'update' . $capitalized . 'FolderProperties() - Update folder properties.',
+                    'operationId' => 'update' . $capitalized . 'FolderProperties',
+                    'parameters'  => [
                         [
                             'name'        => 'body',
                             'description' => 'Array of folder properties.',
@@ -1096,7 +1128,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'body',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Folder',
                             'schema'      => ['$ref' => '#/definitions/Folder']
@@ -1106,15 +1138,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Post body as an array of folder properties.',
+                    'description' => 'Post body as an array of folder properties.',
                 ],
                 'delete'     => [
-                    'tags'              => [$name],
-                    'summary'           => 'delete' .
+                    'tags'        => [$name],
+                    'summary'     => 'delete' .
                         $capitalized .
                         'Folder() - Delete one folder and/or its contents.',
-                    'operationId'       => 'delete' . $capitalized . 'Folder',
-                    'parameters'        => [
+                    'operationId' => 'delete' . $capitalized . 'Folder',
+                    'parameters'  => [
                         [
                             'name'        => 'force',
                             'description' => 'Set to true to force delete on a non-empty folder.',
@@ -1128,7 +1160,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'query',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FolderResponse']
@@ -1138,7 +1170,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       =>
+                    'description' =>
                         'Set \'content_only\' to true to delete the sub-folders and files contained, but not the folder. ' .
                         'Set \'force\' to true to delete a non-empty folder. ' .
                         'Alternatively, to delete by a listing of sub-folders and files, ' .
@@ -1156,12 +1188,12 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     ],
                 ],
                 'get'        => [
-                    'tags'              => [$name],
-                    'summary'           => 'get' .
+                    'tags'        => [$name],
+                    'summary'     => 'get' .
                         $capitalized .
                         'File() - Download the file contents and/or its properties.',
-                    'operationId'       => 'get' . $capitalized . 'File',
-                    'parameters'        => [
+                    'operationId' => 'get' . $capitalized . 'File',
+                    'parameters'  => [
                         [
                             'name'        => 'download',
                             'description' => 'Prompt the user to download the file from the browser.',
@@ -1170,7 +1202,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'default'     => false,
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'File',
                             'schema'      => ['$ref' => '#/definitions/FileResponse']
@@ -1180,15 +1212,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       =>
+                    'description' =>
                         'By default, the file is streamed to the browser. ' .
                         'Use the \'download\' parameter to prompt for download.',
                 ],
                 'post'       => [
-                    'tags'              => [$name],
-                    'summary'           => 'create' . $capitalized . 'File() - Create a new file.',
-                    'operationId'       => 'create' . $capitalized . 'File',
-                    'parameters'        => [
+                    'tags'        => [$name],
+                    'summary'     => 'create' . $capitalized . 'File() - Create a new file.',
+                    'operationId' => 'create' . $capitalized . 'File',
+                    'parameters'  => [
                         [
                             'name'        => 'check_exist',
                             'description' => 'If true, the request fails when the file to create already exists.',
@@ -1202,7 +1234,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'body',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FileResponse']
@@ -1212,13 +1244,13 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Post body should be the contents of the file or an object with file properties.',
+                    'description' => 'Post body should be the contents of the file or an object with file properties.',
                 ],
                 'put'        => [
-                    'tags'              => [$name],
-                    'summary'           => 'replace' . $capitalized . 'File() - Update content of the file.',
-                    'operationId'       => 'replace' . $capitalized . 'File',
-                    'parameters'        => [
+                    'tags'        => [$name],
+                    'summary'     => 'replace' . $capitalized . 'File() - Update content of the file.',
+                    'operationId' => 'replace' . $capitalized . 'File',
+                    'parameters'  => [
                         [
                             'name'        => 'body',
                             'description' => 'The content of the file.',
@@ -1226,7 +1258,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/FileRequest'],
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FileResponse']
@@ -1236,15 +1268,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Post body should be the contents of the file.',
+                    'description' => 'Post body should be the contents of the file.',
                 ],
                 'patch'      => [
-                    'tags'              => [$name],
-                    'summary'           => 'update' .
+                    'tags'        => [$name],
+                    'summary'     => 'update' .
                         $capitalized .
                         'FileProperties() - Update properties of the file.',
-                    'operationId'       => 'update' . $capitalized . 'FileProperties',
-                    'parameters'        => [
+                    'operationId' => 'update' . $capitalized . 'FileProperties',
+                    'parameters'  => [
                         [
                             'name'        => 'body',
                             'description' => 'Properties of the file.',
@@ -1252,7 +1284,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'body',
                         ],
                     ],
-                    'responses'         => [
+                    'responses'   => [
                         '200'     => [
                             'description' => 'File',
                             'schema'      => ['$ref' => '#/definitions/File']
@@ -1262,14 +1294,14 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Post body should be an array of file properties.',
+                    'description' => 'Post body should be an array of file properties.',
                 ],
                 'delete'     => [
-                    'tags'              => [$name],
-                    'summary'           => 'delete' . $capitalized . 'File() - Delete one file.',
-                    'operationId'       => 'delete' . $capitalized . 'File',
-                    'parameters'        => [],
-                    'responses'         => [
+                    'tags'        => [$name],
+                    'summary'     => 'delete' . $capitalized . 'File() - Delete one file.',
+                    'operationId' => 'delete' . $capitalized . 'File',
+                    'parameters'  => [],
+                    'responses'   => [
                         '200'     => [
                             'description' => 'Success',
                             'schema'      => ['$ref' => '#/definitions/FileResponse']
@@ -1279,7 +1311,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['$ref' => '#/definitions/Error']
                         ]
                     ],
-                    'description'       => 'Careful, this removes the given file from the storage.',
+                    'description' => 'Careful, this removes the given file from the storage.',
                 ],
             ],
         ];

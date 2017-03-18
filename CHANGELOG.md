@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - DF-975 Enabled filename change on upload via URL
+- DF-976 Added searching feature for file services
 
 ## 0.1.0 - 2017-03-05
 First official release working with the new [dreamfactory](https://github.com/dreamfactorysoftware/dreamfactory) project.
