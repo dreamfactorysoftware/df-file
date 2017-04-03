@@ -1,7 +1,6 @@
 <?php
 namespace DreamFactory\Core\File\Models;
 
-use DreamFactory\Core\Exceptions\BadRequestException;
 use DreamFactory\Core\Models\BaseServiceConfigModel;
 
 class FilePublicPath extends BaseServiceConfigModel
@@ -12,31 +11,17 @@ class FilePublicPath extends BaseServiceConfigModel
 
     protected $casts = ['public_path' => 'array', 'service_id' => 'integer'];
 
+    protected $rules = ['container' => 'required'];
     /**
      * {@inheritdoc}
      */
-    public static function getConfig($id, $protect = true)
+    public static function getConfig($id, $local_config = null, $protect = true)
     {
-        if (null === $config = parent::getConfig($id, $protect)) {
+        if (null === $config = parent::getConfig($id, $local_config, $protect)) {
             $config = ['public_path' => [], 'container' => null, 'service_id' => $id];
         }
 
         return $config;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public static function validateConfig($config, $create = true)
-    {
-        $validator = static::makeValidator($config, ['container' => 'required'], $create);
-
-        if ($validator->fails()) {
-            $messages = $validator->messages()->getMessages();
-            throw new BadRequestException('Validation failed.', null, null, $messages);
-        }
-
-        return true;
     }
 
     /**
