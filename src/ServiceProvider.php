@@ -31,9 +31,6 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
 
         // add migrations, https://laravel.com/docs/5.4/packages#resources
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-
-        // subscribe to all listened to events
-        Event::subscribe(new ServiceEventHandler());
     }
 
     /**
