@@ -12,10 +12,8 @@ use DreamFactory\Core\Services\BaseRestService;
 use DreamFactory\Core\Utility\FileUtilities;
 use DreamFactory\Core\Utility\ResourcesWrapper;
 use DreamFactory\Core\Utility\ResponseFactory;
-use DreamFactory\Library\Utility\ArrayUtils;
-use DreamFactory\Library\Utility\Enums\Verbs;
-use DreamFactory\Library\Utility\Inflector;
-use DreamFactory\Library\Utility\Scalar;
+use DreamFactory\Core\Enums\Verbs;
+use Illuminate\Support\Arr;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -679,7 +677,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $checkExist = false
     ){
         $out = [];
-        if (!empty($data) && ArrayUtils::isArrayNumeric($data)) {
+        if (!empty($data) && !Arr::isAssoc($data)) {
             foreach ($data as $key => $resource) {
                 switch (array_get($resource, 'type')) {
                     case 'folder':
@@ -696,7 +694,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             try {
                                 $this->driver->copyFolder($this->container, $fullPathName, $srcContainer, $srcPath,
                                     true);
-                                $deleteSource = Scalar::boolval(array_get($resource, 'delete_source'));
+                                $deleteSource = array_get_bool($resource, 'delete_source');
                                 if ($deleteSource) {
                                     $this->driver->deleteFolder($this->container, $srcPath, true);
                                 }
@@ -706,7 +704,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                         } else {
                             $fullPathName = $this->folderPath . $name . '/';
                             $content = array_get($resource, 'content', '');
-                            $isBase64 = Scalar::boolval(array_get($resource, 'is_base64'));
+                            $isBase64 = array_get_bool($resource, 'is_base64');
                             if ($isBase64) {
                                 $content = base64_decode($content);
                             }
@@ -731,7 +729,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             $out[$key] = ['name' => $name, 'path' => $fullPathName, 'type' => 'file'];
                             try {
                                 $this->driver->copyFile($this->container, $fullPathName, $srcContainer, $srcPath, true);
-                                $deleteSource = Scalar::boolval(array_get($resource, 'delete_source'));
+                                $deleteSource = array_get_bool($resource, 'delete_source');
                                 if ($deleteSource) {
                                     $this->driver->deleteFile($this->container, $srcPath);
                                 }
@@ -742,7 +740,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             $fullPathName = $this->folderPath . $name;
                             $out[$key] = ['name' => $name, 'path' => $fullPathName, 'type' => 'file'];
                             $content = array_get($resource, 'content', '');
-                            $isBase64 = Scalar::boolval(array_get($resource, 'is_base64'));
+                            $isBase64 = array_get_bool($resource, 'is_base64');
                             if ($isBase64) {
                                 $content = base64_decode($content);
                             }
@@ -815,7 +813,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     {
         $base = parent::getApiDocInfo($service);
         $name = strtolower($service->name);
-        $capitalized = Inflector::camelize($service->name);
+        $capitalized = camelize($service->name);
 
         $base['paths'] = [
             '/' . $name                     => [
