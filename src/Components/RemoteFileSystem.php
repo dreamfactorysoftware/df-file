@@ -9,7 +9,7 @@ use DreamFactory\Core\Exceptions\BadRequestException;
 use DreamFactory\Core\Exceptions\InternalServerErrorException;
 
 /**
- * Class RemoteFileSystem (a copy of dsp's RemoteFileSvc class)
+ * Class RemoteFileSystem
  *
  * @package DreamFactory\Core\Components
  */
