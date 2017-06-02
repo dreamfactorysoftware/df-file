@@ -10,6 +10,7 @@ class LocalFileService extends BaseFileService
 {
     protected function setDriver($config)
     {
+        $this->container = '';
         if (empty($root = array_get($config, 'container'))) {
             $root = storage_path('app');
         } elseif ('local' === $root) {
