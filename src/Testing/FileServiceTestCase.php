@@ -2,7 +2,7 @@
 namespace DreamFactory\Core\File\Testing;
 
 use DreamFactory\Core\Testing\TestCase;
-use DreamFactory\Library\Utility\Enums\Verbs;
+use DreamFactory\Core\Enums\Verbs;
 
 abstract class FileServiceTestCase extends TestCase
 {
