@@ -463,6 +463,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     protected function handleDELETE()
     {
         $force = $this->request->getParameterAsBool('force', false);
+        $noCheck = $this->request->getParameterAsBool('no_check', false);
 
         if (empty($this->folderPath)) {
             // delete just folders and files from the container
@@ -483,12 +484,12 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 }
             } else {
                 // delete file from permanent storage
-                $this->driver->deleteFile($this->container, $this->filePath);
+                $this->driver->deleteFile($this->container, $this->filePath, $noCheck);
                 $result = ['name' => basename($this->filePath), 'path' => $this->filePath];
             }
         }
 
-        return ResourcesWrapper::cleanResources($result);
+        return ResponseFactory::create(ResourcesWrapper::cleanResources($result));
     }
 
     /**

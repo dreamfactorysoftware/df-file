@@ -1,4 +1,5 @@
 <?php
+
 namespace DreamFactory\Core\File\Components;
 
 use DreamFactory\Core\Contracts\FileSystemInterface;
@@ -587,15 +588,16 @@ abstract class RemoteFileSystem implements FileSystemInterface
     }
 
     /**
-     * @param string $container
-     * @param        $path
+     * @param string  $container
+     * @param stiring $path
+     * @param bool    $noCheck
      *
      * @return void
      * @throws \Exception
      */
-    public function deleteFile($container, $path)
+    public function deleteFile($container, $path, $noCheck = false)
     {
-        $this->deleteBlob($container, $path);
+        $this->deleteBlob($container, $path, $noCheck);
     }
 
     /**
@@ -891,8 +893,9 @@ abstract class RemoteFileSystem implements FileSystemInterface
     /**
      * @param string $container
      * @param string $name
+     * @param bool   $noCheck
      *
      * @throws \Exception
      */
-    abstract public function deleteBlob($container, $name);
+    abstract public function deleteBlob($container, $name, $noCheck = false);
 }
