@@ -12,6 +12,7 @@ class FilePublicPath extends BaseServiceConfigModel
     protected $casts = ['public_path' => 'array', 'service_id' => 'integer'];
 
     protected $rules = ['container' => 'required'];
+
     /**
      * {@inheritdoc}
      */

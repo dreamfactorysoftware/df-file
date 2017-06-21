@@ -8,23 +8,33 @@ use DreamFactory\Core\Utility\Session;
 
 class LocalFileService extends BaseFileService
 {
+    protected static function isRelativePath($path)
+    {
+        // /foo/bar or \\foo\bar
+        if (0 !== strpos($path, DIRECTORY_SEPARATOR)) {
+            return true;
+        }
+        // C:\foo\bar
+        if ((strtoupper(substr(PHP_OS, 0, 3) === 'WIN')) && (1 !== strpos($path, ':'))) {
+            return true;
+        }
+
+        return false;
+
+    }
+
     protected function setDriver($config)
     {
         $this->container = '';
-        if (empty($root = array_get($config, 'container'))) {
+        $root = array_get($config, 'container');
+        //  Replace any private lookups
+        Session::replaceLookups($root, true);
+        // local is the old Laravel config "disk" that may still be configured
+        if (empty($root) || ('local' === $root)) {
             $root = storage_path('app');
-        } elseif ('local' === $root) {
-            $root = storage_path('app');
-        } elseif ('logs' === $root) {
-            $root = storage_path('logs');
-        } else {
-            //  Replace any private lookups
-            Session::replaceLookups($root, true);
-        }
-
-        if (empty($root)) {
-            throw new InternalServerErrorException('Local file service folder not configured.' .
-                ' Please check configuration for file service - ' . $this->name . '.');
+        } elseif (self::isRelativePath($root)) {
+            // use storage path for relative path config
+            $root = storage_path($root);
         }
 
         if (!is_dir($root)) {
