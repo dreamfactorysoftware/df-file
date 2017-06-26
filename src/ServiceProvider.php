@@ -1,8 +1,11 @@
 <?php
+
 namespace DreamFactory\Core\File;
 
 use DreamFactory\Core\Components\ServiceDocBuilder;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
+use DreamFactory\Core\File\Models\FTPFileConfig;
+use DreamFactory\Core\File\Services\FTPFileService;
 use DreamFactory\Core\Handlers\Events\ServiceEventHandler;
 use DreamFactory\Core\File\Models\LocalFileConfig;
 use DreamFactory\Core\File\Services\LocalFileService;
@@ -45,7 +48,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
         $this->mergeConfigFrom($configPath, 'df');
 
         // Add our service types.
-        $this->app->resolving('df.service', function (ServiceManager $df) {
+        $this->app->resolving('df.service', function (ServiceManager $df){
             $df->addType(
                 new ServiceType([
                     'name'            => 'local_file',
@@ -53,11 +56,27 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                     'description'     => 'File service supporting the local file system.',
                     'group'           => ServiceTypeGroups::FILE,
                     'config_handler'  => LocalFileConfig::class,
-                    'default_api_doc' => function ($service) {
+                    'default_api_doc' => function ($service){
                         return $this->buildServiceDoc($service->id, LocalFileService::getApiDocInfo($service));
                     },
-                    'factory'         => function ($config) {
+                    'factory'         => function ($config){
                         return new LocalFileService($config);
+                    },
+                ])
+            );
+
+            $df->addType(
+                new ServiceType([
+                    'name'            => 'ftp_file',
+                    'label'           => 'FTP File Storage',
+                    'description'     => 'File service supporting the FTP server.',
+                    'group'           => ServiceTypeGroups::FILE,
+                    'config_handler'  => FTPFileConfig::class,
+                    'default_api_doc' => function ($service){
+                        return $this->buildServiceDoc($service->id, FTPFileService::getApiDocInfo($service));
+                    },
+                    'factory'         => function ($config){
+                        return new FTPFileService($config);
                     },
                 ])
             );
