@@ -13,6 +13,7 @@ use Log;
 
 class FTPFileSystem implements FileSystemInterface
 {
+
     /**
      * @var array
      */
@@ -31,6 +32,14 @@ class FTPFileSystem implements FileSystemInterface
     public function __construct($config)
     {
         $this->config = $config;
+        $this->setAdapter($config);
+    }
+
+    /**
+     * @param array $config
+     */
+    protected function setAdapter($config)
+    {
         $this->adapter = new DfFtpAdapter($config);
     }
 
