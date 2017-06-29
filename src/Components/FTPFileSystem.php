@@ -282,7 +282,7 @@ class FTPFileSystem implements FileSystemInterface
     public function deleteFolder($container, $path, $force = false)
     {
         if (!$this->folderExists($container, $path)) {
-            throw new BadRequestException("Folder '" . $path . "' does not exist.");
+            throw new NotFoundException("Folder '" . $path . "' does not exist.");
         }
         $path = rtrim($path, '/');
 
