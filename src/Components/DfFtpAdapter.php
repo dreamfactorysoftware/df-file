@@ -61,6 +61,10 @@ class DfFtpAdapter extends Ftp
             array_shift($listing);
         }
 
-        return $this->normalizeObject($listing[0], $path);
+        $filename = basename($path);
+        $basePath = str_replace($filename, null, $path);
+        $basePath = rtrim($basePath, '/');
+
+        return $this->normalizeObject($listing[0], $basePath);
     }
 }

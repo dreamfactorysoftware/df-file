@@ -162,6 +162,9 @@ class FTPFileSystem implements FileSystemInterface
         $path = array_get($folder, 'path');
         $folder['path'] = FileUtilities::fixFolderPath($path);
         $folder['name'] = trim(substr($path, strlen($localizer)), '/');
+        if (empty($folder['name'])) {
+            $folder['name'] = basename($path);
+        }
         $folder['type'] = 'folder';
     }
 
@@ -181,6 +184,9 @@ class FTPFileSystem implements FileSystemInterface
         $path = array_get($file, 'path');
         $timestamp = $this->adapter->getTimestamp($path);
         $file['name'] = trim(substr($path, strlen($localizer)), '/');
+        if (empty($file['name'])) {
+            $file['name'] = basename($path);
+        }
         $file['last_modified'] = gmdate('D, d M Y H:i:s \G\M\T', array_get($timestamp, 'timestamp', 0));
         $file['content_type'] = array_get($this->adapter->getMimetype($path), 'mimetype');
         $file['content_length'] = array_get($file, 'size');
@@ -194,9 +200,12 @@ class FTPFileSystem implements FileSystemInterface
     {
         $path = rtrim($path, '/');
         $meta = $this->adapter->getMetadata($path);
+        if ($meta === false) {
+            throw new NotFoundException("Specified folder '" . $path . "' not found.");
+        }
         if (array_get($meta, 'type') === 'dir') {
-            $meta['name'] = basename($path);
-            unset($meta['type']);
+            $this->normalizeFolderInfo($meta, $path);
+            unset($meta['type'], $meta['size'], $meta['visibility']);
 
             return $meta;
         } else {
@@ -349,7 +358,28 @@ class FTPFileSystem implements FileSystemInterface
     {
         $path = rtrim($path, '/');
         $meta = $this->adapter->getMetadata($path);
-        $this->normalizeFileInfo($meta, $path);
+        if ($meta === false) {
+            throw new NotFoundException("Specified file '" . $path . "' does not exist.");
+        } else {
+            $this->normalizeFileInfo($meta, $path);
+        }
+
+        if ($include_content) {
+            $streamObj = $this->adapter->readStream($path);
+            if ($streamObj !== false) {
+                $stream = array_get($streamObj, 'stream');
+                if (empty($stream)) {
+                    throw new InternalServerErrorException('Failed to retrieve file properties.');
+                }
+                $contents = fread($stream, array_get($meta, 'content_length'));
+                if ($content_as_base) {
+                    $contents = base64_encode($contents);
+                }
+                $meta['content'] = $contents;
+            }
+        }
+
+        unset($meta['type']);
 
         return $meta;
     }
