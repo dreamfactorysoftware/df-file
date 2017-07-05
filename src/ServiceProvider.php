@@ -6,10 +6,12 @@ use DreamFactory\Core\Components\ServiceDocBuilder;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\File\Models\FTPFileConfig;
 use DreamFactory\Core\File\Models\SFTPFileConfig;
+use DreamFactory\Core\File\Models\WebDAVFileConfig;
 use DreamFactory\Core\File\Services\FTPFileService;
 use DreamFactory\Core\File\Services\SFTPFileService;
 use DreamFactory\Core\File\Models\LocalFileConfig;
 use DreamFactory\Core\File\Services\LocalFileService;
+use DreamFactory\Core\File\Services\WebDAVFileService;
 use DreamFactory\Core\Services\ServiceManager;
 use DreamFactory\Core\Services\ServiceType;
 
@@ -93,6 +95,22 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                     },
                     'factory'         => function ($config){
                         return new SFTPFileService($config);
+                    },
+                ])
+            );
+
+            $df->addType(
+                new ServiceType([
+                    'name'            => 'webdav_file',
+                    'label'           => 'WebDAV File Storage',
+                    'description'     => 'File service supporting WebDAV.',
+                    'group'           => ServiceTypeGroups::FILE,
+                    'config_handler'  => WebDAVFileConfig::class,
+                    'default_api_doc' => function ($service){
+                        return $this->buildServiceDoc($service->id, WebDAVFileService::getApiDocInfo($service));
+                    },
+                    'factory'         => function ($config){
+                        return new WebDAVFileService($config);
                     },
                 ])
             );
