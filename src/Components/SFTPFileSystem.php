@@ -2,11 +2,39 @@
 
 namespace DreamFactory\Core\File\Components;
 
+use DreamFactory\Core\Exceptions\NotFoundException;
+
 class SFTPFileSystem extends FTPFileSystem
 {
+    /**
+     * {@inheritdoc}
+     */
     protected function setAdapter($config)
     {
         $this->adapter = new DFSftpAdapter($config);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getFolder($container, $path, $include_files = true, $include_folders = true, $full_tree = false)
+    {
+        if ($this->folderExists($container, $path)) {
+            $path = rtrim($path, '/');
+            $contents = $this->adapter->listContents($path, $full_tree);
+            foreach ($contents as $key => $content) {
+                if (strtolower(array_get($content, 'type')) === 'dir') {
+                    $this->normalizeFolderInfo($content, $path);
+                } else {
+                    $this->normalizeFileInfo($content, $path);
+                }
+                $contents[$key] = $content;
+            }
+
+            return $contents;
+        } else {
+            throw new NotFoundException("Folder '$path' does not exist in storage.");
+        }
     }
 
     /**
