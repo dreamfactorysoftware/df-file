@@ -45,6 +45,9 @@ class SFTPFileSystem extends FTPFileSystem
      */
     protected function normalizeFolderInfo(array & $folder, $localizer)
     {
+        if(empty(array_get($folder, 'type')) && !empty(array_get($folder, 'path'))){
+            $folder['type'] = 'dir';
+        }
         parent::normalizeFolderInfo($folder, $localizer);
         $folder['last_modified'] = gmdate('D, d M Y H:i:s \G\M\T', array_get($folder, 'timestamp', 0));
         unset($folder['timestamp']);

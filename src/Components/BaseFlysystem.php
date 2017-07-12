@@ -222,6 +222,11 @@ abstract class BaseFlysystem implements FileSystemInterface
         }
         $path = rtrim($path, '/');
         $result = $this->adapter->createDir($path, new Config());
+
+        if($result === false){
+            throw new InternalServerErrorException("Failed to create folder '" . $path . "'.");
+        }
+
         $this->normalizeFolderInfo($result, $path);
 
         return $result;
