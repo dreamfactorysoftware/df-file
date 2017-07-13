@@ -493,9 +493,9 @@ abstract class BaseFlysystem implements FileSystemInterface
             throw new NotFoundException("Folder '$parent' does not exist.");
         }
 
-        if (!$this->adapter->rename($local_path, $path)) {
-            throw new InternalServerErrorException("Failed to move file '$path'");
-        }
+        $stream = fopen($local_path, 'rb');
+        $this->adapter->writeStream($path, $stream, new Config());
+        fclose($stream);
     }
 
     /**
