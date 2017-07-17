@@ -44,8 +44,8 @@ class WebDAVFileConfig extends BaseServiceConfigModel
     {
         $out = (array)parent::getConfigSchema();
         $pathSchema = (array)FilePublicPath::getConfigSchema();
-        $pathSchema[1]['label'] = 'Root folder';
-        $pathSchema[1]['description'] = 'Enter a full path for a root folder.';
+        $pathSchema[1]['label'] = 'Root folder/Path prefix';
+        $pathSchema[1]['description'] = 'Enter a path prefix for a root folder.';
 
         return array_merge($out, $pathSchema);
     }
@@ -59,8 +59,8 @@ class WebDAVFileConfig extends BaseServiceConfigModel
 
         switch ($schema['name']) {
             case 'base_uri':
-                $schema['description'] = 'WebDAV base uri';
-                break;
+                $schema['description'] = 'WebDAV base uri. This should only be the host. No resource or prefixes. ' .
+                                         'For example: http://example.com Not http://example.com/somefolder .';
                 break;
             case 'username':
                 $schema['description'] = 'WebDAV server username.';
