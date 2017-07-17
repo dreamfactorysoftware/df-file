@@ -22,13 +22,13 @@ class WebDAVFileService extends RemoteFileService
             'baseUri' => array_get($config, 'base_uri')
         ];
         if($username = array_get($config, 'username', false)){
-            $settings['username'] = $username;
+            $settings['userName'] = $username;
         }
         if($password = array_get($config, 'password', false)){
             $settings['password'] = $password;
         }
         if($authType = array_get($config, 'auth_type', false)){
-            $settings['auth_type'] = $authType;
+            $settings['authType'] = $authType;
         }
         if($encoding = array_get($config, 'encoding', false)){
             $settings['encoding'] = $encoding;
