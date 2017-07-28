@@ -1,4 +1,5 @@
 <?php
+
 namespace DreamFactory\Core\File\Components;
 
 use DreamFactory\Core\Utility\FileUtilities;
@@ -731,16 +732,17 @@ class LocalFileSystem implements FileSystemInterface
     /**
      * @param string $container
      * @param string $path
+     * @param bool   $noCheck
      *
      * @throws \Exception
      * @throws BadRequestException
      * @return void
      */
-    public function deleteFile($container, $path)
+    public function deleteFile($container, $path, $noCheck = false)
     {
         $file = static::addContainerToName($container, $path);
-        if (!is_file($file)) {
-            throw new BadRequestException("'$file' is not a valid filename.");
+        if (!$noCheck && !is_file($file)) {
+            throw new NotFoundException("File '$file' was not found.");
         }
         if (!unlink($file)) {
             throw new InternalServerErrorException('Failed to delete file.');

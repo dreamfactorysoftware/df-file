@@ -1,4 +1,5 @@
 <?php
+
 namespace DreamFactory\Core\File\Components;
 
 use DreamFactory\Core\Contracts\FileSystemInterface;
@@ -138,7 +139,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
             if (!empty($path)) {
                 if (!$this->blobExists($container, $path)) {
                     // blob may not exist for "fake" folders, i.e. S3 prefixes
-//					throw new NotFoundException( "Folder '$path' does not exist in storage." );
+					throw new NotFoundException( "Folder '$path' does not exist in storage." );
                 }
             }
             $results = $this->listBlobs($container, $path, $delimiter);
@@ -311,7 +312,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
     public function deleteFolder($container, $path, $force = false)
     {
         $path = rtrim($path, '/') . '/';
-        $blobs = $this->listBlobs($container, $path);
+        $blobs = $this->listBlobs($container, $path, "/");
         if (!empty($blobs)) {
             if ((1 === count($blobs)) && (0 === strcasecmp($path, $blobs[0]['name']))) {
                 // only self properties blob
@@ -587,15 +588,16 @@ abstract class RemoteFileSystem implements FileSystemInterface
     }
 
     /**
-     * @param string $container
-     * @param        $path
+     * @param string  $container
+     * @param stiring $path
+     * @param bool    $noCheck
      *
      * @return void
      * @throws \Exception
      */
-    public function deleteFile($container, $path)
+    public function deleteFile($container, $path, $noCheck = false)
     {
-        $this->deleteBlob($container, $path);
+        $this->deleteBlob($container, $path, $noCheck);
     }
 
     /**
@@ -891,8 +893,9 @@ abstract class RemoteFileSystem implements FileSystemInterface
     /**
      * @param string $container
      * @param string $name
+     * @param bool   $noCheck
      *
      * @throws \Exception
      */
-    abstract public function deleteBlob($container, $name);
+    abstract public function deleteBlob($container, $name, $noCheck = false);
 }
