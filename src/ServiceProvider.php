@@ -2,7 +2,6 @@
 
 namespace DreamFactory\Core\File;
 
-use DreamFactory\Core\Components\ServiceDocBuilder;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\File\Models\FTPFileConfig;
 use DreamFactory\Core\File\Models\SFTPFileConfig;
@@ -17,8 +16,6 @@ use DreamFactory\Core\Services\ServiceType;
 
 class ServiceProvider extends \Illuminate\Support\ServiceProvider
 {
-    use ServiceDocBuilder;
-
     /**
      * Bootstrap the application events.
      *
@@ -58,9 +55,6 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                     'description'     => 'File service supporting the local file system.',
                     'group'           => ServiceTypeGroups::FILE,
                     'config_handler'  => LocalFileConfig::class,
-                    'default_api_doc' => function ($service){
-                        return $this->buildServiceDoc($service->id, LocalFileService::getApiDocInfo($service));
-                    },
                     'factory'         => function ($config){
                         return new LocalFileService($config);
                     },
@@ -74,9 +68,6 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                     'description'     => 'File service supporting the FTP protocol.',
                     'group'           => ServiceTypeGroups::FILE,
                     'config_handler'  => FTPFileConfig::class,
-                    'default_api_doc' => function ($service){
-                        return $this->buildServiceDoc($service->id, FTPFileService::getApiDocInfo($service));
-                    },
                     'factory'         => function ($config){
                         return new FTPFileService($config);
                     },
@@ -90,9 +81,6 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                     'description'     => 'File service supporting the SFTP protocol.',
                     'group'           => ServiceTypeGroups::FILE,
                     'config_handler'  => SFTPFileConfig::class,
-                    'default_api_doc' => function ($service){
-                        return $this->buildServiceDoc($service->id, SFTPFileService::getApiDocInfo($service));
-                    },
                     'factory'         => function ($config){
                         return new SFTPFileService($config);
                     },
@@ -106,9 +94,6 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                     'description'     => 'File service supporting WebDAV.',
                     'group'           => ServiceTypeGroups::FILE,
                     'config_handler'  => WebDAVFileConfig::class,
-                    'default_api_doc' => function ($service){
-                        return $this->buildServiceDoc($service->id, WebDAVFileService::getApiDocInfo($service));
-                    },
                     'factory'         => function ($config){
                         return new WebDAVFileService($config);
                     },
