@@ -61,9 +61,8 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         ];
         parent::__construct($settings);
 
-        $config = array_get($settings, 'config');
-        $this->publicPaths = array_get($config, 'public_path', []);
-        $this->setDriver($config);
+        $this->publicPaths = (array)array_get($this->config, 'public_path');
+        $this->setDriver($this->config);
     }
 
     /**
