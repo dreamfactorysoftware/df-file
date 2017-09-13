@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- DF-1199, DF-1210 Fixed creating files with POST /files/{file_path} api
 
 ## [0.4.0] - 2017-08-17
 ### Changed

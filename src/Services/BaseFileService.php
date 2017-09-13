@@ -385,7 +385,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
             $clean = $this->request->getParameterAsBool('clean', false);
             $checkExist = $this->request->getParameterAsBool('check_exist', false);
             $name = basename($this->filePath);
-            $path = (0 === strpos($this->filePath, '/')) ? dirname($this->filePath) : '';
+            $path = (false !== strpos($this->filePath, '/')) ? dirname($this->filePath) : '';
             $files = $this->request->getFile('files');
             if (empty($files)) {
                 // direct load from posted data as content
