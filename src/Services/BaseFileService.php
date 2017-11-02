@@ -816,12 +816,9 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         return [
             '/'               => [
                 'get'    => [
-                    'summary'     => 'get' . $capitalized . 'Resources() - List all resources.',
-                    'operationId' => 'get' . $capitalized . 'Resources',
-                    'responses'   => [
-                        '200' => ['$ref' => '#/components/schemas/ResourceList']
-                    ],
+                    'summary'     => 'List all resources.',
                     'description' => 'List the resources (folders and files) available in this storage. ',
+                    'operationId' => 'get' . $capitalized . 'Resources',
                     'parameters'  => [
                         ApiOptions::documentOption(ApiOptions::AS_LIST),
                         ApiOptions::documentOption(ApiOptions::AS_ACCESS_LIST),
@@ -851,9 +848,13 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'query',
                         ],
                     ],
+                    'responses'   => [
+                        '200' => ['$ref' => '#/components/schemas/ResourceList']
+                    ],
                 ],
                 'post'   => [
-                    'summary'     => 'create' . $capitalized . 'Content() - Create some folders and/or files.',
+                    'summary'     => 'Create some folders and/or files.',
+                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                     'operationId' => 'create' . $capitalized . 'Content',
                     'parameters'  => [
                         [
@@ -893,22 +894,25 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                 ],
                 'patch'  => [
-                    'summary'     => 'update' . $capitalized . 'ContainerProperties() - Update container properties.',
+                    'summary'     => 'Update container properties.',
+                    'description' => 'Post body as an array of folder properties.',
                     'operationId' => 'update' . $capitalized . 'ContainerProperties',
-                    'parameters'  => [],
                     'requestBody' => [
                         '$ref' => '#/components/requestBodies/FolderRequest'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' => 'Post body as an array of folder properties.',
                 ],
                 'delete' => [
-                    'summary'     => 'delete' . $capitalized . 'Content() - Delete some container contents.',
+                    'summary'     => 'Delete some container contents.',
+                    'description' =>
+                        'Set \'content_only\' to true to delete the sub-folders and files contained, but not the container. ' .
+                        'Set \'force\' to true to delete a non-empty folder. ' .
+                        'Alternatively, to delete by a listing of sub-folders and files, ' .
+                        'use the POST request with X-HTTP-METHOD = DELETE header and post listing.',
                     'operationId' => 'delete' . $capitalized . 'Content',
                     'parameters'  => [
                         [
@@ -927,11 +931,6 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' =>
-                        'Set \'content_only\' to true to delete the sub-folders and files contained, but not the container. ' .
-                        'Set \'force\' to true to delete a non-empty folder. ' .
-                        'Alternatively, to delete by a listing of sub-folders and files, ' .
-                        'use the POST request with X-HTTP-METHOD = DELETE header and post listing.',
                 ],
             ],
             '/{folder_path}/' => [
@@ -945,7 +944,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     ],
                 ],
                 'get'        => [
-                    'summary'     => 'get' . $capitalized . 'Folder() - List the folder\'s content, including properties.',
+                    'summary'     => 'List the folder\'s content, including properties.',
+                    'description' =>
+                        'Use \'include_properties\' to get properties of the folder. ' .
+                        'Use the \'include_folders\' and/or \'include_files\' to modify the listing.',
                     'operationId' => 'get' . $capitalized . 'Folder',
                     'parameters'  => [
                         [
@@ -982,12 +984,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' =>
-                        'Use \'include_properties\' to get properties of the folder. ' .
-                        'Use the \'include_folders\' and/or \'include_files\' to modify the listing.',
                 ],
                 'post'       => [
-                    'summary'     => 'create' . $capitalized . 'Folder() - Create a folder and/or add content.',
+                    'summary'     => 'Create a folder and/or add content.',
+                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                     'operationId' => 'create' . $capitalized . 'Folder',
                     'parameters'  => [
                         [
@@ -1027,22 +1027,25 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                 ],
                 'patch'      => [
-                    'summary'     => 'update' . $capitalized . 'FolderProperties() - Update folder properties.',
+                    'summary'     => 'Update folder properties.',
+                    'description' => 'Post body as an array of folder properties.',
                     'operationId' => 'update' . $capitalized . 'FolderProperties',
-                    'parameters'  => [],
                     'requestBody' => [
                         '$ref' => '#/components/requestBodies/FolderRequest'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' => 'Post body as an array of folder properties.',
                 ],
                 'delete'     => [
-                    'summary'     => 'delete' . $capitalized . 'Folder() - Delete one folder and/or its contents.',
+                    'summary'     => 'Delete one folder and/or its contents.',
+                    'description' =>
+                        'Set \'content_only\' to true to delete the sub-folders and files contained, but not the folder. ' .
+                        'Set \'force\' to true to delete a non-empty folder. ' .
+                        'Alternatively, to delete by a listing of sub-folders and files, ' .
+                        'use the POST request with X-HTTP-METHOD = DELETE header and post listing.',
                     'operationId' => 'delete' . $capitalized . 'Folder',
                     'parameters'  => [
                         [
@@ -1061,11 +1064,6 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' =>
-                        'Set \'content_only\' to true to delete the sub-folders and files contained, but not the folder. ' .
-                        'Set \'force\' to true to delete a non-empty folder. ' .
-                        'Alternatively, to delete by a listing of sub-folders and files, ' .
-                        'use the POST request with X-HTTP-METHOD = DELETE header and post listing.',
                 ],
             ],
             '/{file_path}'    => [
@@ -1079,7 +1077,9 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     ],
                 ],
                 'get'        => [
-                    'summary'     => 'get' . $capitalized . 'File() - Download the file contents and/or its properties.',
+                    'summary'     => 'Download the file contents and/or its properties.',
+                    'description' => 'By default, the file is streamed to the browser. ' .
+                        'Use the \'download\' parameter to prompt for download.',
                     'operationId' => 'get' . $capitalized . 'File',
                     'parameters'  => [
                         [
@@ -1092,12 +1092,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' =>
-                        'By default, the file is streamed to the browser. ' .
-                        'Use the \'download\' parameter to prompt for download.',
                 ],
                 'post'       => [
-                    'summary'     => 'create' . $capitalized . 'File() - Create a new file.',
+                    'summary'     => 'Create a new file.',
+                    'description' => 'Post body should be the contents of the file or an object with file properties.',
                     'operationId' => 'create' . $capitalized . 'File',
                     'parameters'  => [
                         [
@@ -1113,40 +1111,36 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' => 'Post body should be the contents of the file or an object with file properties.',
                 ],
                 'put'        => [
-                    'summary'     => 'replace' . $capitalized . 'File() - Update content of the file.',
+                    'summary'     => 'Update content of the file.',
+                    'description' => 'Post body should be the contents of the file.',
                     'operationId' => 'replace' . $capitalized . 'File',
-                    'parameters'  => [],
                     'requestBody' => [
                         '$ref' => '#/components/requestBodies/FileRequest'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' => 'Post body should be the contents of the file.',
                 ],
                 'patch'      => [
-                    'summary'     => 'update' . $capitalized . 'FileProperties() - Update properties of the file.',
+                    'summary'     => 'Update properties of the file.',
+                    'description' => 'Post body should be an array of file properties.',
                     'operationId' => 'update' . $capitalized . 'FileProperties',
-                    'parameters'  => [],
                     'requestBody' => [
                         '$ref' => '#/components/requestBodies/FileRequest'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' => 'Post body should be an array of file properties.',
                 ],
                 'delete'     => [
-                    'summary'     => 'delete' . $capitalized . 'File() - Delete one file.',
+                    'summary'     => 'Delete one file.',
+                    'description' => 'Careful, this removes the given file from the storage.',
                     'operationId' => 'delete' . $capitalized . 'File',
-                    'parameters'  => [],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' => 'Careful, this removes the given file from the storage.',
                 ],
             ],
         ];
