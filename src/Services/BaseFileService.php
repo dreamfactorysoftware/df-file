@@ -291,7 +291,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 // stream the file using StreamedResponse, exits processing
                 $response = new StreamedResponse();
                 $service = $this;
-                $response->setCallback(function () use ($service, $download){
+                $response->setCallback(function () use ($service, $download) {
                     $service->streamFile($service->container, $service->filePath, $download);
                 });
 
@@ -524,7 +524,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ){
+    ) {
         $ext = FileUtilities::getFileExtension($dest_name);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, $content);
@@ -588,7 +588,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ){
+    ) {
         $ext = FileUtilities::getFileExtension($source_file);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, '', $source_file);
@@ -675,7 +675,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $clean = false,
         /** @noinspection PhpUnusedParameterInspection */
         $checkExist = false
-    ){
+    ) {
         $out = [];
         if (!empty($data) && !Arr::isAssoc($data)) {
             foreach ($data as $key => $resource) {
@@ -809,29 +809,16 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         return $out;
     }
 
-    public static function getApiDocInfo($service)
+    protected function getApiDocPaths()
     {
-        $base = parent::getApiDocInfo($service);
-        $name = strtolower($service->name);
-        $capitalized = camelize($service->name);
+        $capitalized = camelize($this->name);
 
-        $base['paths'] = [
-            '/' . $name                     => [
+        return [
+            '/'               => [
                 'get'    => [
-                    'tags'        => [$name],
-                    'summary'     => 'get' . $capitalized . 'Resources() - List all resources.',
-                    'operationId' => 'get' . $capitalized . 'Resources',
-                    'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/ResourceList']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
-                    ],
+                    'summary'     => 'List all resources.',
                     'description' => 'List the resources (folders and files) available in this storage. ',
+                    'operationId' => 'get' . $capitalized . 'Resources',
                     'parameters'  => [
                         ApiOptions::documentOption(ApiOptions::AS_LIST),
                         ApiOptions::documentOption(ApiOptions::AS_ACCESS_LIST),
@@ -839,481 +826,384 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                         [
                             'name'        => 'include_folders',
                             'description' => 'Include folders in the returned listing.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'required'    => false,
-                            'default'     => true,
                         ],
                         [
                             'name'        => 'include_files',
                             'description' => 'Include files in the returned listing.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'required'    => false,
-                            'default'     => true,
                         ],
                         [
                             'name'        => 'full_tree',
                             'description' => 'List the contents of all sub-folders as well.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'required'    => false,
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'zip',
                             'description' => 'Return the content of the path as a zip file.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'required'    => false,
-                            'default'     => false,
                         ],
+                    ],
+                    'responses'   => [
+                        '200' => ['$ref' => '#/components/schemas/ResourceList']
                     ],
                 ],
                 'post'   => [
-                    'tags'        => [$name],
-                    'summary'     => 'create' . $capitalized . 'Content() - Create some folders and/or files.',
+                    'summary'     => 'Create some folders and/or files.',
+                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                     'operationId' => 'create' . $capitalized . 'Content',
                     'parameters'  => [
                         [
-                            'name'        => 'body',
-                            'description' => 'Array of folders and/or files.',
-                            'schema'      => ['$ref' => '#/definitions/FolderRequest'],
-                            'in'          => 'body',
-                        ],
-                        [
                             'name'        => 'url',
                             'description' => 'The full URL of the file to upload.',
-                            'type'        => 'string',
+                            'schema'      => ['type' => 'string'],
                             'in'          => 'query',
                         ],
                         [
                             'name'        => 'extract',
                             'description' => 'Extract an uploaded zip file into the folder.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'clean',
                             'description' => 'Option when \'extract\' is true, clean the current folder before extracting files and folders.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'check_exist',
                             'description' => 'If true, the request fails when the file or folder to create already exists.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'X-HTTP-METHOD',
                             'description' => 'Override request using POST to tunnel other http request, such as DELETE.',
-                            'enum'        => ['GET', 'PUT', 'PATCH', 'DELETE'],
-                            'type'        => 'string',
+                            'schema'      => ['type' => 'string', 'enum' => ['GET', 'PUT', 'PATCH', 'DELETE']],
                             'in'          => 'header',
                         ],
                     ],
-                    'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FolderResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/FolderRequest'
                     ],
-                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
+                    'responses'   => [
+                        '200' => ['$ref' => '#/components/responses/FolderResponse']
+                    ],
                 ],
                 'patch'  => [
-                    'tags'        => [$name],
-                    'summary'     => 'update' . $capitalized . 'ContainerProperties() - Update container properties.',
+                    'summary'     => 'Update container properties.',
+                    'description' => 'Post body as an array of folder properties.',
                     'operationId' => 'update' . $capitalized . 'ContainerProperties',
-                    'parameters'  => [
-                        [
-                            'name'        => 'body',
-                            'description' => 'Array of container properties.',
-                            'schema'      => ['$ref' => '#/definitions/FolderRequest'],
-                            'in'          => 'body',
-                        ],
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/FolderRequest'
                     ],
                     'responses'   => [
-                        '200'     => [
-                            'description' => 'Folder',
-                            'schema'      => ['$ref' => '#/definitions/Folder']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                        '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' => 'Post body as an array of folder properties.',
                 ],
                 'delete' => [
-                    'tags'        => [$name],
-                    'summary'     => 'delete' .
-                        $capitalized .
-                        'Content() - Delete some container contents.',
-                    'operationId' => 'delete' . $capitalized . 'Content',
-                    'parameters'  => [
-                        [
-                            'name'        => 'force',
-                            'description' => 'Set to true to force delete on a non-empty folder.',
-                            'type'        => 'boolean',
-                            'in'          => 'query',
-                        ],
-                        [
-                            'name'        => 'content_only',
-                            'description' => 'Set to true to only delete the content of the container.',
-                            'type'        => 'boolean',
-                            'in'          => 'query',
-                        ],
-                    ],
-                    'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FolderResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
-                    ],
+                    'summary'     => 'Delete some container contents.',
                     'description' =>
                         'Set \'content_only\' to true to delete the sub-folders and files contained, but not the container. ' .
                         'Set \'force\' to true to delete a non-empty folder. ' .
                         'Alternatively, to delete by a listing of sub-folders and files, ' .
                         'use the POST request with X-HTTP-METHOD = DELETE header and post listing.',
+                    'operationId' => 'delete' . $capitalized . 'Content',
+                    'parameters'  => [
+                        [
+                            'name'        => 'force',
+                            'description' => 'Set to true to force delete on a non-empty folder.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                        [
+                            'name'        => 'content_only',
+                            'description' => 'Set to true to only delete the content of the container.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                    ],
+                    'responses'   => [
+                        '200' => ['$ref' => '#/components/responses/FolderResponse']
+                    ],
                 ],
             ],
-            '/' . $name . '/{folder_path}/' => [
+            '/{folder_path}/' => [
                 'parameters' => [
                     [
                         'name'        => 'folder_path',
                         'description' => 'The path of the folder you want to retrieve. This can be a sub-folder, with each level separated by a \'/\'',
-                        'type'        => 'string',
+                        'schema'      => ['type' => 'string'],
                         'in'          => 'path',
                         'required'    => true,
                     ],
                 ],
                 'get'        => [
-                    'tags'        => [$name],
-                    'summary'     => 'get' .
-                        $capitalized .
-                        'Folder() - List the folder\'s content, including properties.',
+                    'summary'     => 'List the folder\'s content, including properties.',
+                    'description' =>
+                        'Use \'include_properties\' to get properties of the folder. ' .
+                        'Use the \'include_folders\' and/or \'include_files\' to modify the listing.',
                     'operationId' => 'get' . $capitalized . 'Folder',
                     'parameters'  => [
                         [
                             'name'        => 'include_properties',
                             'description' => 'Return any properties of the folder in the response.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'include_folders',
                             'description' => 'Include folders in the returned listing.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean', 'default' => true],
                             'in'          => 'query',
-                            'default'     => true,
                         ],
                         [
                             'name'        => 'include_files',
                             'description' => 'Include files in the returned listing.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean', 'default' => true],
                             'in'          => 'query',
-                            'default'     => true,
                         ],
                         [
                             'name'        => 'full_tree',
                             'description' => 'List the contents of all sub-folders as well.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'zip',
                             'description' => 'Return the content of the folder as a zip file.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                     ],
                     'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FolderResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                        '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' =>
-                        'Use \'include_properties\' to get properties of the folder. ' .
-                        'Use the \'include_folders\' and/or \'include_files\' to modify the listing.',
                 ],
                 'post'       => [
-                    'tags'        => [$name],
-                    'summary'     => 'create' . $capitalized . 'Folder() - Create a folder and/or add content.',
+                    'summary'     => 'Create a folder and/or add content.',
+                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
                     'operationId' => 'create' . $capitalized . 'Folder',
                     'parameters'  => [
                         [
-                            'name'        => 'body',
-                            'description' => 'Array of folders and/or files.',
-                            'schema'      => ['$ref' => '#/definitions/FolderRequest'],
-                            'in'          => 'body',
-                        ],
-                        [
                             'name'        => 'url',
                             'description' => 'The full URL of the file to upload.',
-                            'type'        => 'string',
+                            'schema'      => ['type' => 'string'],
                             'in'          => 'query',
                         ],
                         [
                             'name'        => 'extract',
                             'description' => 'Extract an uploaded zip file into the folder.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'clean',
                             'description' => 'Option when \'extract\' is true, clean the current folder before extracting files and folders.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'check_exist',
                             'description' => 'If true, the request fails when the file or folder to create already exists.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                         [
                             'name'        => 'X-HTTP-METHOD',
                             'description' => 'Override request using POST to tunnel other http request, such as DELETE.',
-                            'enum'        => ['GET', 'PUT', 'PATCH', 'DELETE'],
-                            'type'        => 'string',
+                            'schema'      => ['type' => 'string', 'enum' => ['GET', 'PUT', 'PATCH', 'DELETE']],
                             'in'          => 'header',
                         ],
                     ],
-                    'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FolderResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/FolderRequest'
                     ],
-                    'description' => 'Post data as an array of folders and/or files. Folders are created if they do not exist',
+                    'responses'   => [
+                        '200' => ['$ref' => '#/components/responses/FolderResponse']
+                    ],
                 ],
                 'patch'      => [
-                    'tags'        => [$name],
-                    'summary'     => 'update' . $capitalized . 'FolderProperties() - Update folder properties.',
+                    'summary'     => 'Update folder properties.',
+                    'description' => 'Post body as an array of folder properties.',
                     'operationId' => 'update' . $capitalized . 'FolderProperties',
-                    'parameters'  => [
-                        [
-                            'name'        => 'body',
-                            'description' => 'Array of folder properties.',
-                            'schema'      => ['$ref' => '#/definitions/FolderRequest'],
-                            'in'          => 'body',
-                        ],
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/FolderRequest'
                     ],
                     'responses'   => [
-                        '200'     => [
-                            'description' => 'Folder',
-                            'schema'      => ['$ref' => '#/definitions/Folder']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                        '200' => ['$ref' => '#/components/responses/FolderResponse']
                     ],
-                    'description' => 'Post body as an array of folder properties.',
                 ],
                 'delete'     => [
-                    'tags'        => [$name],
-                    'summary'     => 'delete' .
-                        $capitalized .
-                        'Folder() - Delete one folder and/or its contents.',
-                    'operationId' => 'delete' . $capitalized . 'Folder',
-                    'parameters'  => [
-                        [
-                            'name'        => 'force',
-                            'description' => 'Set to true to force delete on a non-empty folder.',
-                            'type'        => 'boolean',
-                            'in'          => 'query',
-                        ],
-                        [
-                            'name'        => 'content_only',
-                            'description' => 'Set to true to only delete the content of the folder.',
-                            'type'        => 'boolean',
-                            'in'          => 'query',
-                        ],
-                    ],
-                    'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FolderResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
-                    ],
+                    'summary'     => 'Delete one folder and/or its contents.',
                     'description' =>
                         'Set \'content_only\' to true to delete the sub-folders and files contained, but not the folder. ' .
                         'Set \'force\' to true to delete a non-empty folder. ' .
                         'Alternatively, to delete by a listing of sub-folders and files, ' .
                         'use the POST request with X-HTTP-METHOD = DELETE header and post listing.',
+                    'operationId' => 'delete' . $capitalized . 'Folder',
+                    'parameters'  => [
+                        [
+                            'name'        => 'force',
+                            'description' => 'Set to true to force delete on a non-empty folder.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                        [
+                            'name'        => 'content_only',
+                            'description' => 'Set to true to only delete the content of the folder.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                    ],
+                    'responses'   => [
+                        '200' => ['$ref' => '#/components/responses/FolderResponse']
+                    ],
                 ],
             ],
-            '/' . $name . '/{file_path}'    => [
+            '/{file_path}'    => [
                 'parameters' => [
                     [
                         'name'        => 'file_path',
                         'description' => 'Path and name of the file to retrieve.',
-                        'type'        => 'string',
+                        'schema'      => ['type' => 'string'],
                         'in'          => 'path',
                         'required'    => true,
                     ],
                 ],
                 'get'        => [
-                    'tags'        => [$name],
-                    'summary'     => 'get' .
-                        $capitalized .
-                        'File() - Download the file contents and/or its properties.',
+                    'summary'     => 'Download the file contents and/or its properties.',
+                    'description' => 'By default, the file is streamed to the browser. ' .
+                        'Use the \'download\' parameter to prompt for download.',
                     'operationId' => 'get' . $capitalized . 'File',
                     'parameters'  => [
                         [
                             'name'        => 'download',
                             'description' => 'Prompt the user to download the file from the browser.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
-                            'default'     => false,
                         ],
                     ],
                     'responses'   => [
-                        '200'     => [
-                            'description' => 'File',
-                            'schema'      => ['$ref' => '#/definitions/FileResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                        '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' =>
-                        'By default, the file is streamed to the browser. ' .
-                        'Use the \'download\' parameter to prompt for download.',
                 ],
                 'post'       => [
-                    'tags'        => [$name],
-                    'summary'     => 'create' . $capitalized . 'File() - Create a new file.',
+                    'summary'     => 'Create a new file.',
+                    'description' => 'Post body should be the contents of the file or an object with file properties.',
                     'operationId' => 'create' . $capitalized . 'File',
                     'parameters'  => [
                         [
                             'name'        => 'check_exist',
                             'description' => 'If true, the request fails when the file to create already exists.',
-                            'type'        => 'boolean',
+                            'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
-                        [
-                            'name'        => 'body',
-                            'description' => 'Content and/or properties of the file.',
-                            'schema'      => ['$ref' => '#/definitions/FileRequest'],
-                            'in'          => 'body',
-                        ],
+                    ],
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/FileRequest'
                     ],
                     'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FileResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                        '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' => 'Post body should be the contents of the file or an object with file properties.',
                 ],
                 'put'        => [
-                    'tags'        => [$name],
-                    'summary'     => 'replace' . $capitalized . 'File() - Update content of the file.',
+                    'summary'     => 'Update content of the file.',
+                    'description' => 'Post body should be the contents of the file.',
                     'operationId' => 'replace' . $capitalized . 'File',
-                    'parameters'  => [
-                        [
-                            'name'        => 'body',
-                            'description' => 'The content of the file.',
-                            'in'          => 'body',
-                            'schema'      => ['$ref' => '#/definitions/FileRequest'],
-                        ],
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/FileRequest'
                     ],
                     'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FileResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                        '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' => 'Post body should be the contents of the file.',
                 ],
                 'patch'      => [
-                    'tags'        => [$name],
-                    'summary'     => 'update' .
-                        $capitalized .
-                        'FileProperties() - Update properties of the file.',
+                    'summary'     => 'Update properties of the file.',
+                    'description' => 'Post body should be an array of file properties.',
                     'operationId' => 'update' . $capitalized . 'FileProperties',
-                    'parameters'  => [
-                        [
-                            'name'        => 'body',
-                            'description' => 'Properties of the file.',
-                            'schema'      => ['$ref' => '#/definitions/File'],
-                            'in'          => 'body',
-                        ],
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/FileRequest'
                     ],
                     'responses'   => [
-                        '200'     => [
-                            'description' => 'File',
-                            'schema'      => ['$ref' => '#/definitions/File']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
+                        '200' => ['$ref' => '#/components/responses/FileResponse']
                     ],
-                    'description' => 'Post body should be an array of file properties.',
                 ],
                 'delete'     => [
-                    'tags'        => [$name],
-                    'summary'     => 'delete' . $capitalized . 'File() - Delete one file.',
-                    'operationId' => 'delete' . $capitalized . 'File',
-                    'parameters'  => [],
-                    'responses'   => [
-                        '200'     => [
-                            'description' => 'Success',
-                            'schema'      => ['$ref' => '#/definitions/FileResponse']
-                        ],
-                        'default' => [
-                            'description' => 'Error',
-                            'schema'      => ['$ref' => '#/definitions/Error']
-                        ]
-                    ],
+                    'summary'     => 'Delete one file.',
                     'description' => 'Careful, this removes the given file from the storage.',
+                    'operationId' => 'delete' . $capitalized . 'File',
+                    'responses'   => [
+                        '200' => ['$ref' => '#/components/responses/FileResponse']
+                    ],
                 ],
             ],
         ];
+    }
 
+    protected function getApiDocRequests()
+    {
+        return [
+            'FolderRequest' => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderRequest']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderRequest']
+                    ],
+                ],
+            ],
+            'FileRequest'   => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/FileRequest']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/FileRequest']
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    protected function getApiDocResponses()
+    {
+        return [
+            'FolderResponse' => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderResponse']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderResponse']
+                    ],
+                ],
+            ],
+            'FileResponse'   => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/FileResponse']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/FileResponse']
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    protected function getApiDocSchemas()
+    {
         $commonFolder = [
             'name'     => [
                 'type'        => 'string',
@@ -1384,7 +1274,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'type'        => 'array',
                             'description' => 'An array of resources to operate on.',
                             'items'       => [
-                                '$ref' => '#/definitions/FileRequest',
+                                '$ref' => '#/components/schemas/FileRequest',
                             ],
                         ],
                     ]
@@ -1403,7 +1293,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'type'        => 'array',
                             'description' => 'An array of contained resources.',
                             'items'       => [
-                                '$ref' => '#/definitions/FileResponse',
+                                '$ref' => '#/components/schemas/FileResponse',
                             ],
                         ],
                     ]
@@ -1419,8 +1309,6 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
             ],
         ];
 
-        $base['definitions'] = array_merge($base['definitions'], $models);
-
-        return $base;
+        return $models;
     }
 }
