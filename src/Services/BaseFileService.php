@@ -291,7 +291,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 // stream the file using StreamedResponse, exits processing
                 $response = new StreamedResponse();
                 $service = $this;
-                $response->setCallback(function () use ($service, $download) {
+                $response->setCallback(function () use ($service, $download){
                     $service->streamFile($service->container, $service->filePath, $download);
                 });
 
@@ -463,6 +463,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     {
         $force = $this->request->getParameterAsBool('force', false);
         $noCheck = $this->request->getParameterAsBool('no_check', false);
+        $contentOnly = $this->request->getParameterAsBool('content_only', false);
 
         if (empty($this->folderPath)) {
             // delete just folders and files from the container
@@ -478,7 +479,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 if (!empty($content = ResourcesWrapper::unwrapResources($this->request->getPayloadData()))) {
                     $result = $this->deleteFolderContent($content, $this->folderPath, $force);
                 } else {
-                    $this->driver->deleteFolder($this->container, $this->folderPath, $force);
+                    $this->driver->deleteFolder($this->container, $this->folderPath, $force, $contentOnly);
                     $result = ['name' => basename($this->folderPath), 'path' => $this->folderPath];
                 }
             } else {
@@ -524,7 +525,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ) {
+    ){
         $ext = FileUtilities::getFileExtension($dest_name);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, $content);
@@ -588,7 +589,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ) {
+    ){
         $ext = FileUtilities::getFileExtension($source_file);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, '', $source_file);
@@ -675,7 +676,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $clean = false,
         /** @noinspection PhpUnusedParameterInspection */
         $checkExist = false
-    ) {
+    ){
         $out = [];
         if (!empty($data) && !Arr::isAssoc($data)) {
             foreach ($data as $key => $resource) {

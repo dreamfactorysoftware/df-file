@@ -309,7 +309,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
      * @return void
      * @throws \Exception
      */
-    public function deleteFolder($container, $path, $force = false)
+    public function deleteFolder($container, $path, $force = false, $contentOnly = false)
     {
         $path = rtrim($path, '/') . '/';
         $blobs = $this->listBlobs($container, $path, "/");
@@ -326,7 +326,9 @@ abstract class RemoteFileSystem implements FileSystemInterface
                 }
             }
         }
-        $this->deleteBlob($container, $path);
+        if($contentOnly === false){
+            $this->deleteBlob($container, $path);
+        }
     }
 
     /**
