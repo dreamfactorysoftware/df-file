@@ -162,7 +162,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     protected function handleResource(array $resources)
     {
         //  Fall through is to process just like a no-resource request
-        $resources = $this->getResources(true);
+        $resources = $this->getResourceHandlers();
         if ((false !== $resources) && !empty($this->resource)) {
             if (in_array($this->resource, $resources)) {
                 return $this->processRequest();
