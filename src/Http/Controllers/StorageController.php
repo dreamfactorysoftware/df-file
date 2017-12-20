@@ -33,32 +33,35 @@ class StorageController extends Controller
             // Check for private paths here.
             $publicPaths = $service->getPublicPaths();
 
-            // Clean trailing slashes from paths
-            array_walk($publicPaths, function (&$value) {
-                $value = rtrim($value, '/');
-            });
+            if (!in_array($path, $publicPaths)) {
+                // Clean trailing slashes from paths
+                array_walk($publicPaths, function (&$value) {
+                    $value = rtrim($value, '/');
+                });
 
-            $directory = rtrim(substr($path, 0, strlen(substr($path, 0, strrpos($path, '/')))), '/');
-            $pieces = explode("/", $directory);
-            $dir = null;
-            $allowed = false;
+                $directory = rtrim(substr($path, 0, strlen(substr($path, 0, strrpos($path, '/')))), '/');
+                $pieces = explode("/", $directory);
+                $dir = null;
+                $allowed = false;
 
-            foreach ($pieces as $p) {
-                if (empty($dir)) {
-                    $dir = $p;
-                } else {
-                    $dir .= "/" . $p;
+                foreach ($pieces as $p) {
+                    if (empty($dir)) {
+                        $dir = $p;
+                    } else {
+                        $dir .= "/" . $p;
+                    }
+
+                    if (in_array($dir, $publicPaths)) {
+                        $allowed = true;
+                        break;
+                    }
                 }
 
-                if (in_array($dir, $publicPaths)) {
-                    $allowed = true;
-                    break;
+                if (!$allowed) {
+                    throw new ForbiddenException('Access denied, please contact your system administrator.');
                 }
             }
 
-            if (!$allowed) {
-                throw new ForbiddenException('Access denied, please contact your system administrator.');
-            }
             Log::info('[RESPONSE] File stream');
 
             $response = new StreamedResponse();
