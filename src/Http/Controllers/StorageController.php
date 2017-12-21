@@ -22,51 +22,21 @@ class StorageController extends Controller
                 'Path'    => $path
             ]);
 
-            $storage = strtolower($storage);
-
-            /** @type FileServiceInterface $service */
-            $service = ServiceManager::getService($storage);
+            $service = ServiceManager::getService(strtolower($storage));
             if (!($service instanceof FileServiceInterface)) {
                 throw new BadRequestException('Service requested is not a file storage service.');
             }
 
-            // Check for private paths here.
-            $publicPaths = $service->getPublicPaths();
-
-            if (!in_array($path, $publicPaths)) {
-                // Clean trailing slashes from paths
-                array_walk($publicPaths, function (&$value) {
-                    $value = rtrim($value, '/');
-                });
-
-                $directory = rtrim(substr($path, 0, strlen(substr($path, 0, strrpos($path, '/')))), '/');
-                $pieces = explode("/", $directory);
-                $dir = null;
-                $allowed = false;
-
-                foreach ($pieces as $p) {
-                    if (empty($dir)) {
-                        $dir = $p;
-                    } else {
-                        $dir .= "/" . $p;
-                    }
-
-                    if (in_array($dir, $publicPaths)) {
-                        $allowed = true;
-                        break;
-                    }
-                }
-
-                if (!$allowed) {
-                    throw new ForbiddenException('Access denied, please contact your system administrator.');
-                }
+            // Check for public paths here
+            if (!$service->isPublicPath($path)) {
+                throw new ForbiddenException('Access denied, please contact your system administrator.');
             }
 
             Log::info('[RESPONSE] File stream');
 
             $response = new StreamedResponse();
             $response->setCallback(function () use ($service, $path) {
-                $service->streamFile($service->getContainerId(), $path);
+                $service->streamFile($path);
             });
 
             return $response;

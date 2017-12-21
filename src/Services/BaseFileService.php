@@ -31,12 +31,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
      * @var string Storage container name
      */
     protected $container = null;
-
     /**
      * @var string Full folder path of the resource
      */
     protected $folderPath = null;
-
     /**
      * @var string Full file path of the resource
      */
@@ -102,14 +100,45 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         return $this->publicPaths;
     }
 
+    public function isPublicPath($path)
+    {
+        if (in_array($path, $this->publicPaths)) {
+            return true;
+        }
+
+        // Clean trailing slashes from paths
+        array_walk($this->publicPaths, function (&$value) {
+            $value = rtrim($value, '/');
+        });
+
+        $directory = rtrim(substr($path, 0, strlen(substr($path, 0, strrpos($path, '/')))), '/');
+        $pieces = explode("/", $directory);
+        $dir = null;
+        $allowed = false;
+
+        foreach ($pieces as $p) {
+            if (empty($dir)) {
+                $dir = $p;
+            } else {
+                $dir .= "/" . $p;
+            }
+
+            if (in_array($dir, $this->publicPaths)) {
+                $allowed = true;
+                break;
+            }
+        }
+
+        return $allowed;
+    }
+
     /**
-     * @param      $container
      * @param      $path
      * @param bool $download
      */
-    public function streamFile($container, $path, $download = false)
+    public function streamFile($path, $download = false)
     {
-        $this->driver->streamFile($container, $path, $download);
+        $this->driver->streamFile($this->container, $path, $download);
     }
 
     /**
@@ -291,8 +320,8 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 // stream the file using StreamedResponse, exits processing
                 $response = new StreamedResponse();
                 $service = $this;
-                $response->setCallback(function () use ($service, $download){
-                    $service->streamFile($service->container, $service->filePath, $download);
+                $response->setCallback(function () use ($service, $download) {
+                    $service->streamFile($service->filePath, $download);
                 });
 
                 return $response;
@@ -525,7 +554,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ){
+    ) {
         $ext = FileUtilities::getFileExtension($dest_name);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, $content);
@@ -543,7 +572,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 throw new InternalServerErrorException('Error opening temporary zip file. code = ' . $code);
             }
 
-            $results = $this->extractZipFile($this->container, $dest_path, $zip, $clean);
+            $results = $this->extractZipFile($dest_path, $zip, $clean);
             unlink($tmpName);
 
             return $results;
@@ -556,7 +585,6 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     }
 
     /**
-     * @param            $container
      * @param            $path
      * @param            $zip
      * @param bool|false $clean
@@ -564,9 +592,11 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
      *
      * @return array
      */
-    public function extractZipFile($container, $path, $zip, $clean = false, $drop_path = null)
+    public function extractZipFile($path, $zip, $clean = false, $drop_path = null)
     {
-        return $this->driver->extractZipFile($container, $path, $zip, $clean, $drop_path);
+        $path = FileUtilities::fixFolderPath($path);
+
+        return $this->driver->extractZipFile($this->container, $path, $zip, $clean, $drop_path);
     }
 
     /**
@@ -589,7 +619,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ){
+    ) {
         $ext = FileUtilities::getFileExtension($source_file);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, '', $source_file);
@@ -598,7 +628,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
             // need to extract zip file and move contents to storage
             $zip = new \ZipArchive();
             if (true === $zip->open($source_file)) {
-                return $this->extractZipFile($this->container, $dest_path, $zip, $clean);
+                return $this->extractZipFile($dest_path, $zip, $clean);
             } else {
                 throw new InternalServerErrorException('Error opening temporary zip file.');
             }
@@ -676,7 +706,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $clean = false,
         /** @noinspection PhpUnusedParameterInspection */
         $checkExist = false
-    ){
+    ) {
         $out = [];
         if (!empty($data) && !Arr::isAssoc($data)) {
             foreach ($data as $key => $resource) {
