@@ -444,18 +444,10 @@ class LocalFileSystem implements FileSystemInterface
 //            }
     }
 
-    /**
-     * @param string $container
-     * @param string $path
-     * @param bool   $force If true, delete folder content as well,
-     *                      otherwise return error when content present.
-     *
-     * @return void
-     */
-    public function deleteFolder($container, $path, $force = false)
+    public function deleteFolder($container, $path, $force = false, $content_only = false)
     {
         $dir = static::addContainerToName($container, $path);
-        FileUtilities::deleteTree($dir, $force);
+        FileUtilities::deleteTree($dir, $force, !$content_only);
     }
 
     /**
@@ -465,7 +457,6 @@ class LocalFileSystem implements FileSystemInterface
      * @param bool   $force If true, delete folder content as well,
      *                      otherwise return error when content present.
      *
-     * @throws BadRequestException
      * @return array
      */
     public function deleteFolders($container, $folders, $root = '', $force = false)
