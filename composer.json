@@ -8,6 +8,8 @@
     "api",
     "file",
     "blob",
+    "ftp",
+    "webdav",
     "storage"
   ],
   "license":     [
@@ -23,8 +25,14 @@
       "email": "leehicks@dreamfactory.com"
     }
   ],
+  "support":     {
+    "email":  "dspsupport@dreamfactory.com",
+    "source": "https://github.com/dreamfactorysoftware/df-file",
+    "issues": "https://github.com/dreamfactorysoftware/df-file/issues",
+    "wiki":   "https://wiki.dreamfactory.com"
+  },
   "require":     {
-    "dreamfactory/df-core": "~0.13.0",
+    "dreamfactory/df-core": "~0.14.0",
     "league/flysystem-sftp": "^1.0",
     "league/flysystem-webdav": "^1.0"
   },
@@ -38,7 +46,12 @@
   },
   "extra":       {
     "branch-alias": {
-      "dev-develop": "0.5.x-dev"
+      "dev-develop": "0.6.x-dev"
+    },
+    "laravel": {
+      "providers": [
+        "DreamFactory\\Core\\File\\ServiceProvider"
+      ]
     }
   }
 }

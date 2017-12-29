@@ -31,6 +31,12 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
         }
         $this->publishes([$configPath => $publishPath], 'config');
 
+        // add routes
+        /** @noinspection PhpUndefinedMethodInspection */
+        if (!$this->app->routesAreCached()) {
+            include __DIR__ . '/../routes/routes.php';
+        }
+
         // add migrations, https://laravel.com/docs/5.4/packages#resources
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
     }

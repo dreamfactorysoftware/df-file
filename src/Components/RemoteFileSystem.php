@@ -139,7 +139,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
             if (!empty($path)) {
                 if (!$this->blobExists($container, $path)) {
                     // blob may not exist for "fake" folders, i.e. S3 prefixes
-					throw new NotFoundException( "Folder '$path' does not exist in storage." );
+                    throw new NotFoundException("Folder '$path' does not exist in storage.");
                 }
             }
             $results = $this->listBlobs($container, $path, $delimiter);
@@ -303,16 +303,17 @@ abstract class RemoteFileSystem implements FileSystemInterface
     /**
      * @param string $container
      * @param string $path
-     * @param bool   $force If true, delete folder content as well,
-     *                      otherwise return error when content present.
+     * @param bool   $force        If true, delete folder content as well,
+     *                             otherwise return error when content present.
+     * @param bool   $content_only If true, delete folder itself, false then just the content,
      *
      * @return void
      * @throws \Exception
      */
-    public function deleteFolder($container, $path, $force = false)
+    public function deleteFolder($container, $path, $force = false, $content_only = false)
     {
         $path = rtrim($path, '/') . '/';
-        $blobs = $this->listBlobs($container, $path, "/");
+        $blobs = $this->listBlobs($container, $path);
         if (!empty($blobs)) {
             if ((1 === count($blobs)) && (0 === strcasecmp($path, $blobs[0]['name']))) {
                 // only self properties blob
@@ -326,7 +327,9 @@ abstract class RemoteFileSystem implements FileSystemInterface
                 }
             }
         }
-        $this->deleteBlob($container, $path);
+        if (!$content_only) {
+            $this->deleteBlob($container, $path);
+        }
     }
 
     /**
@@ -336,7 +339,6 @@ abstract class RemoteFileSystem implements FileSystemInterface
      * @param bool   $force If true, delete folder content as well,
      *                      otherwise return error when content present.
      *
-     * @throws BadRequestException
      * @return array
      */
     public function deleteFolders($container, $folders, $root = '', $force = false)

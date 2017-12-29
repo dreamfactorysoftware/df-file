@@ -31,12 +31,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
      * @var string Storage container name
      */
     protected $container = null;
-
     /**
      * @var string Full folder path of the resource
      */
     protected $folderPath = null;
-
     /**
      * @var string Full file path of the resource
      */
@@ -102,15 +100,140 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         return $this->publicPaths;
     }
 
-    /**
-     * @param      $container
-     * @param      $path
-     * @param bool $download
-     */
-    public function streamFile($container, $path, $download = false)
+    public function isPublicPath($path)
     {
-        $this->driver->streamFile($container, $path, $download);
+        if (in_array($path, $this->publicPaths)) {
+            return true;
+        }
+
+        // Clean trailing slashes from paths
+        array_walk($this->publicPaths, function (&$value) {
+            $value = rtrim($value, '/');
+        });
+
+        $directory = rtrim(substr($path, 0, strlen(substr($path, 0, strrpos($path, '/')))), '/');
+        $pieces = explode("/", $directory);
+        $dir = null;
+        $allowed = false;
+
+        foreach ($pieces as $p) {
+            if (empty($dir)) {
+                $dir = $p;
+            } else {
+                $dir .= "/" . $p;
+            }
+
+            if (in_array($dir, $this->publicPaths)) {
+                $allowed = true;
+                break;
+            }
+        }
+
+        return $allowed;
     }
+
+    public function folderExists($path)
+    {
+        return $this->driver->folderExists($this->container, $path);
+    }
+
+    public function getFolder($path, $include_files = true, $include_folders = true, $full_tree = false)
+    {
+        return $this->driver->getFolder($this->container, $path, $include_files, $include_folders, $full_tree);
+    }
+
+    public function getFolderProperties($path)
+    {
+        return $this->driver->getFolderProperties($this->container, $path);
+    }
+
+    public function createFolder($path, $properties = [])
+    {
+         $this->driver->createFolder($this->container, $path, $properties);
+    }
+
+    public function updateFolderProperties($path, $properties = [])
+    {
+         $this->driver->updateFolderProperties($this->container, $path, $properties);
+    }
+
+    public function copyFolder($dest_path, $src_container, $src_path, $check_exist = false)
+    {
+         $this->driver->copyFolder($this->container, $dest_path, $src_container, $src_path, $check_exist);
+    }
+
+    public function deleteFolders($folders, $root = '', $force = false)
+    {
+        return $this->driver->deleteFolders($this->container, $folders, $root, $force);
+    }
+
+    public function deleteFolder($path, $force = false, $content_only = false)
+    {
+         $this->driver->deleteFolder($this->container, $path, $force, $content_only);
+    }
+
+    public function fileExists($path)
+    {
+        return $this->driver->fileExists($this->container, $path);
+    }
+
+    public function getFileContent($path, $local_file = null, $content_as_base = true)
+    {
+        return $this->driver->getFileContent($this->container, $path, $local_file, $content_as_base);
+    }
+
+    public function getFileProperties($path, $include_content = false, $content_as_base = true)
+    {
+        return $this->driver->getFileProperties($this->container, $path, $include_content, $content_as_base);
+    }
+
+    public function updateFileProperties($path, $properties = [])
+    {
+         $this->driver->updateFileProperties($this->container, $path, $properties);
+    }
+
+    public function writeFile($path, $content, $content_is_base = true, $check_exist = false)
+    {
+        $this->driver->writeFile($this->container, $path, $content, $content_is_base, $check_exist);
+    }
+
+    public function moveFile($path, $local_path, $check_exist = false)
+    {
+        $this->driver->moveFile($this->container, $path, $local_path, $check_exist);
+    }
+
+    public function copyFile($dest_path, $sc_container, $src_path, $check_exist = false)
+    {
+         $this->driver->copyFile($this->container, $dest_path, $sc_container, $src_path, $check_exist);
+    }
+
+    public function deleteFile($path, $noCheck = false)
+    {
+         $this->driver->deleteFile($this->container, $path, $noCheck);
+    }
+
+    public function deleteFiles($files, $root = null)
+    {
+        return $this->driver->deleteFiles($this->container, $files, $root);
+    }
+
+    public function streamFile($path, $download = false)
+    {
+         $this->driver->streamFile($this->container, $path, $download);
+    }
+
+    public function getFolderAsZip($path, $zip = null, $zipFileName = null, $overwrite = false)
+    {
+        return $this->driver->getFolderAsZip($this->container, $path, $zip, $zipFileName, $overwrite);
+    }
+
+    public function extractZipFile($path, $zip, $clean = false, $drop_path = null)
+    {
+        $path = FileUtilities::fixFolderPath($path);
+
+        return $this->driver->extractZipFile($this->container, $path, $zip, $clean, $drop_path);
+    }
+
 
     /**
      * Sets the file system driver Local/S3/Azure/OStack...
@@ -162,7 +285,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     protected function handleResource(array $resources)
     {
         //  Fall through is to process just like a no-resource request
-        $resources = $this->getResources(true);
+        $resources = $this->getResourceHandlers();
         if ((false !== $resources) && !empty($this->resource)) {
             if (in_array($this->resource, $resources)) {
                 return $this->processRequest();
@@ -292,7 +415,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 $response = new StreamedResponse();
                 $service = $this;
                 $response->setCallback(function () use ($service, $download) {
-                    $service->streamFile($service->container, $service->filePath, $download);
+                    $service->streamFile($service->filePath, $download);
                 });
 
                 return $response;
@@ -463,6 +586,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     {
         $force = $this->request->getParameterAsBool('force', false);
         $noCheck = $this->request->getParameterAsBool('no_check', false);
+        $contentOnly = $this->request->getParameterAsBool('content_only', false);
 
         if (empty($this->folderPath)) {
             // delete just folders and files from the container
@@ -478,7 +602,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 if (!empty($content = ResourcesWrapper::unwrapResources($this->request->getPayloadData()))) {
                     $result = $this->deleteFolderContent($content, $this->folderPath, $force);
                 } else {
-                    $this->driver->deleteFolder($this->container, $this->folderPath, $force);
+                    $this->driver->deleteFolder($this->container, $this->folderPath, $force, $contentOnly);
                     $result = ['name' => basename($this->folderPath), 'path' => $this->folderPath];
                 }
             } else {
@@ -542,7 +666,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 throw new InternalServerErrorException('Error opening temporary zip file. code = ' . $code);
             }
 
-            $results = $this->extractZipFile($this->container, $dest_path, $zip, $clean);
+            $results = $this->extractZipFile($dest_path, $zip, $clean);
             unlink($tmpName);
 
             return $results;
@@ -552,20 +676,6 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
             return ['name' => $dest_name, 'path' => $fullPathName, 'type' => 'file'];
         }
-    }
-
-    /**
-     * @param            $container
-     * @param            $path
-     * @param            $zip
-     * @param bool|false $clean
-     * @param null       $drop_path
-     *
-     * @return array
-     */
-    public function extractZipFile($container, $path, $zip, $clean = false, $drop_path = null)
-    {
-        return $this->driver->extractZipFile($container, $path, $zip, $clean, $drop_path);
     }
 
     /**
@@ -597,7 +707,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
             // need to extract zip file and move contents to storage
             $zip = new \ZipArchive();
             if (true === $zip->open($source_file)) {
-                return $this->extractZipFile($this->container, $dest_path, $zip, $clean);
+                return $this->extractZipFile($dest_path, $zip, $clean);
             } else {
                 throw new InternalServerErrorException('Error opening temporary zip file.');
             }

@@ -223,7 +223,7 @@ abstract class BaseFlysystem implements FileSystemInterface
         $path = rtrim($path, '/');
         $result = $this->adapter->createDir($path, new Config());
 
-        if($result === false){
+        if ($result === false) {
             throw new InternalServerErrorException("Failed to create folder '" . $path . "'.");
         }
 
@@ -289,7 +289,7 @@ abstract class BaseFlysystem implements FileSystemInterface
     /**
      * {@inheritdoc}
      */
-    public function deleteFolder($container, $path, $force = false)
+    public function deleteFolder($container, $path, $force = false, $content_only = false)
     {
         if (!$this->folderExists($container, $path)) {
             throw new NotFoundException("Folder '" . $path . "' does not exist.");
@@ -297,7 +297,7 @@ abstract class BaseFlysystem implements FileSystemInterface
         $path = rtrim($path, '/');
 
         if ($force) {
-            $this->deleteTree($path);
+            $this->deleteTree($path, !$content_only);
         } else {
             try {
                 if (!$this->adapter->deleteDir($path)) {
@@ -311,8 +311,9 @@ abstract class BaseFlysystem implements FileSystemInterface
 
     /**
      * @param string $path
+     * @param bool   $delete_self
      */
-    public function deleteTree($path)
+    public function deleteTree($path, $delete_self = true)
     {
         $path = rtrim($path, '/');
         $meta = $this->adapter->getMetadata($path);
@@ -322,7 +323,9 @@ abstract class BaseFlysystem implements FileSystemInterface
             foreach ($contents as $content) {
                 $this->deleteTree($content['path']);
             }
-            $this->adapter->deleteDir($path);
+            if ($delete_self) {
+                $this->adapter->deleteDir($path);
+            }
         } elseif ($meta['type'] === 'file') {
             $this->adapter->delete($path);
         }
@@ -611,7 +614,7 @@ abstract class BaseFlysystem implements FileSystemInterface
 
     /**
      * @param \ZipArchive $zip
-     * @param string $path
+     * @param string      $path
      *
      * @throws \DreamFactory\Core\Exceptions\InternalServerErrorException
      * @throws \Exception
@@ -632,7 +635,7 @@ abstract class BaseFlysystem implements FileSystemInterface
             foreach ($files as $file) {
                 if ($file['type'] === 'dir') {
                     static::addTreeToZip($zip, $file['path']);
-                } else if ($file['type'] === 'file') {
+                } elseif ($file['type'] === 'file') {
                     $newPath = str_replace(DIRECTORY_SEPARATOR, '/', $file['path']);
                     $fileObj = $this->adapter->read($newPath);
                     if (!empty($fileObj) && isset($fileObj['contents'])) {

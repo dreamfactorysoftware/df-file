@@ -4,6 +4,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2017-12-28
+### Added
+- Added package discovery
+- DF-1266 Added parameter 'content_only' for folder delete
+- Allow for individual and root folder public path declarations
+### Fixed
+- Fix file extraction and streaming to not use service's container attribute as it is owned by the service itself
+### Changed
+- Cleanup and simplify routing
+- DF-1150 Update copyright and support email
+- Separated resources from resource handlers
+
 ## [0.5.0] - 2017-11-03
 ### Changed
 - Upgrade Swagger to OpenAPI 3.0 specification
@@ -44,7 +56,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 First official release working with the new [dreamfactory](https://github.com/dreamfactorysoftware/dreamfactory) project.
 
-[Unreleased]: https://github.com/dreamfactorysoftware/df-file/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/dreamfactorysoftware/df-file/compare/0.6.0...HEAD
+[0.6.0]: https://github.com/dreamfactorysoftware/df-file/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/dreamfactorysoftware/df-file/compare/0.4.1...0.5.0
 [0.4.1]: https://github.com/dreamfactorysoftware/df-file/compare/0.4.0...0.4.1
 [0.4.0]: https://github.com/dreamfactorysoftware/df-file/compare/0.3.0...0.4.0
