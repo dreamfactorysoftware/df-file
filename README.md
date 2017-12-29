@@ -15,7 +15,7 @@ Documentation for the file service features can be found on the [DreamFactory wi
 Edit your project’s composer.json to require the following package.
 
 	“require”:{
-		"dreamfactory/df-file": "~0.5.0"
+		"dreamfactory/df-file": "~0.6.0"
 	}
 
 ## Feedback and Contributions
