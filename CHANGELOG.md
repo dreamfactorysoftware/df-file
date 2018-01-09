@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- DF-1280 Fixed zip errors in package exporter using empty folders in remote file systems
 
 ## [0.6.0] - 2017-12-28
 ### Added
