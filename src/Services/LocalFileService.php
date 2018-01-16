@@ -31,10 +31,11 @@ class LocalFileService extends BaseFileService
         Session::replaceLookups($root, true);
         // local is the old Laravel config "disk" that may still be configured
         if (empty($root) || ('local' === $root)) {
-            $root = storage_path('app');
+            //df config calls storage_path() so need to add this in for managed instances.
+            $root = config('df.storage_path');
         } elseif (self::isRelativePath($root)) {
-            // use storage path for relative path config
-            $root = storage_path($root);
+            // df config calls storage_path() so need to add this in for managed instances.
+            $root = config('df.storage_path');
         }
 
         if (!is_dir($root)) {
