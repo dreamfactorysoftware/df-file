@@ -20,7 +20,6 @@ class LocalFileService extends BaseFileService
         }
 
         return false;
-
     }
 
     protected function setDriver($config)
@@ -32,10 +31,10 @@ class LocalFileService extends BaseFileService
         // local is the old Laravel config "disk" that may still be configured
         if (empty($root) || ('local' === $root)) {
             //df config calls storage_path() so need to add this in for managed instances.
-            $root = config('df.storage_path');
+            $root = rtrim(config('df.storage_path'), '/') . DIRECTORY_SEPARATOR . 'app';
         } elseif (self::isRelativePath($root)) {
             // df config calls storage_path() so need to add this in for managed instances.
-            $root = config('df.storage_path');
+            $root = rtrim(config('df.storage_path'), '/') . DIRECTORY_SEPARATOR . ltrim($root, '/');
         }
 
         if (!is_dir($root)) {
