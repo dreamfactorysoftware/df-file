@@ -11,7 +11,7 @@ class LocalFileService extends BaseFileService
     protected static function isRelativePath($path)
     {
         // /foo/bar or \\foo\bar
-        if (0 !== strpos($path, DIRECTORY_SEPARATOR)) {
+        if ((strtoupper(substr(PHP_OS, 0, 3) !== 'WIN')) && (0 !== strpos($path, DIRECTORY_SEPARATOR))) {
             return true;
         }
         // C:\foo\bar

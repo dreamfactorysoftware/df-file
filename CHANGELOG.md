@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Fixed
 - DF-1280 Fixed zip errors in package exporter using empty folders in remote file systems
+- DF-1256 Fixed absolute path based local file service for windows
 
 ## [0.6.0] - 2017-12-28
 ### Added
