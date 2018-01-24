@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - DF-1280 Fixed zip errors in package exporter using empty folders in remote file systems
 - DF-1256 Fixed absolute path based local file service for windows
+- DF-1229 Added support for accented characters in storage folder/file name
 
 ## [0.6.0] - 2017-12-28
 ### Added
