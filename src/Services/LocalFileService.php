@@ -10,16 +10,17 @@ class LocalFileService extends BaseFileService
 {
     protected static function isRelativePath($path)
     {
-        // /foo/bar or \\foo\bar
-        if ((strtoupper(substr(PHP_OS, 0, 3) !== 'WIN')) && (0 !== strpos($path, DIRECTORY_SEPARATOR))) {
-            return true;
-        }
-        // C:\foo\bar
-        if ((strtoupper(substr(PHP_OS, 0, 3) === 'WIN')) && (1 !== strpos($path, ':'))) {
-            return true;
+        if (0 === substr_compare(PHP_OS, 'WIN', 0, 3, true)) {
+            // C:\foo\bar or \\foo\bar
+            if ((1 === strpos($path, ':')) || (0 === strpos($path, DIRECTORY_SEPARATOR))) {
+                return false;
+            }
+        } elseif (0 === strpos($path, DIRECTORY_SEPARATOR)) {
+            // /foo/bar
+            return false;
         }
 
-        return false;
+        return true;
     }
 
     protected function setDriver($config)
