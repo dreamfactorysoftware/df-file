@@ -676,22 +676,26 @@ abstract class RemoteFileSystem implements FileSystemInterface
         }
 
         $results = $this->listBlobs($container, $path, $delimiter);
-        foreach ($results as $blob) {
-            $fullPathName = array_get($blob, 'name');
-            $shortName = substr_replace($fullPathName, '', 0, strlen($path));
-            if (empty($shortName)) {
-                continue;
-            }
-            if ('/' == substr($fullPathName, strlen($fullPathName) - 1)) {
-                // folders
-                if (!$zip->addEmptyDir($shortName)) {
-                    throw new InternalServerErrorException("Can not include folder '$shortName' in zip file.");
+        if (empty($results)) {
+            $zip->addEmptyDir($path);
+        } else {
+            foreach ($results as $blob) {
+                $fullPathName = array_get($blob, 'name');
+                $shortName = substr_replace($fullPathName, '', 0, strlen($path));
+                if (empty($shortName)) {
+                    continue;
                 }
-            } else {
-                // files
-                $content = $this->getBlobData($container, $fullPathName);
-                if (!$zip->addFromString($shortName, $content)) {
-                    throw new InternalServerErrorException("Can not include file '$shortName' in zip file.");
+                if ('/' == substr($fullPathName, strlen($fullPathName) - 1)) {
+                    // folders
+                    if (!$zip->addEmptyDir($shortName)) {
+                        throw new InternalServerErrorException("Can not include folder '$shortName' in zip file.");
+                    }
+                } else {
+                    // files
+                    $content = $this->getBlobData($container, $fullPathName);
+                    if (!$zip->addFromString($shortName, $content)) {
+                        throw new InternalServerErrorException("Can not include file '$shortName' in zip file.");
+                    }
                 }
             }
         }

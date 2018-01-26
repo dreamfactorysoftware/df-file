@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+## [0.6.1] - 2018-01-25
+### Added
+- DF-1229 Added support for accented characters in storage folder/file name
+### Fixed
+- DF-1280 Fixed zip errors in package exporter using empty folders in remote file systems
+- DF-1256 Fixed absolute path based local file service for MS Windows
+- Modified local file service to pull from config so that it picks up DF_MANAGED_STORAGE_PATH for local files 
 
 ## [0.6.0] - 2017-12-28
 ### Added
@@ -56,7 +63,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 First official release working with the new [dreamfactory](https://github.com/dreamfactorysoftware/dreamfactory) project.
 
-[Unreleased]: https://github.com/dreamfactorysoftware/df-file/compare/0.6.0...HEAD
+[Unreleased]: https://github.com/dreamfactorysoftware/df-file/compare/0.6.1...HEAD
+[0.6.1]: https://github.com/dreamfactorysoftware/df-file/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/dreamfactorysoftware/df-file/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/dreamfactorysoftware/df-file/compare/0.4.1...0.5.0
 [0.4.1]: https://github.com/dreamfactorysoftware/df-file/compare/0.4.0...0.4.1

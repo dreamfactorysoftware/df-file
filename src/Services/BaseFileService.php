@@ -442,8 +442,8 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
             $clean = $this->request->getParameterAsBool('clean', false);
             $checkExist = $this->request->getParameterAsBool('check_exist', false);
 
-            $fileNameHeader = $this->request->getHeader('X-File-Name');
-            $folderNameHeader = $this->request->getHeader('X-Folder-Name');
+            $fileNameHeader = str_to_utf8($this->request->getHeader('X-File-Name'));
+            $folderNameHeader = str_to_utf8($this->request->getHeader('X-Folder-Name'));
             $fileUrl = filter_var($this->request->getParameter('url', ''), FILTER_SANITIZE_URL);
 
             if (!empty($fileNameHeader)) {

@@ -10,17 +10,17 @@ class LocalFileService extends BaseFileService
 {
     protected static function isRelativePath($path)
     {
-        // /foo/bar or \\foo\bar
-        if (0 !== strpos($path, DIRECTORY_SEPARATOR)) {
-            return true;
-        }
-        // C:\foo\bar
-        if ((strtoupper(substr(PHP_OS, 0, 3) === 'WIN')) && (1 !== strpos($path, ':'))) {
-            return true;
+        if (0 === substr_compare(PHP_OS, 'WIN', 0, 3, true)) {
+            // C:\foo\bar or \\foo\bar
+            if ((1 === strpos($path, ':')) || (0 === strpos($path, DIRECTORY_SEPARATOR))) {
+                return false;
+            }
+        } elseif (0 === strpos($path, DIRECTORY_SEPARATOR)) {
+            // /foo/bar
+            return false;
         }
 
-        return false;
-
+        return true;
     }
 
     protected function setDriver($config)
@@ -31,10 +31,11 @@ class LocalFileService extends BaseFileService
         Session::replaceLookups($root, true);
         // local is the old Laravel config "disk" that may still be configured
         if (empty($root) || ('local' === $root)) {
-            $root = storage_path('app');
+            //df config calls storage_path() so need to add this in for managed instances.
+            $root = rtrim(config('df.storage_path'), '/') . DIRECTORY_SEPARATOR . 'app';
         } elseif (self::isRelativePath($root)) {
-            // use storage path for relative path config
-            $root = storage_path($root);
+            // df config calls storage_path() so need to add this in for managed instances.
+            $root = rtrim(config('df.storage_path'), '/') . DIRECTORY_SEPARATOR . ltrim($root, '/');
         }
 
         if (!is_dir($root)) {
