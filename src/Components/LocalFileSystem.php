@@ -2,6 +2,7 @@
 
 namespace DreamFactory\Core\File\Components;
 
+use DreamFactory\Core\Exceptions\NotImplementedException;
 use DreamFactory\Core\Utility\FileUtilities;
 use DreamFactory\Core\Contracts\FileSystemInterface;
 use DreamFactory\Core\Exceptions\NotFoundException;
@@ -194,22 +195,12 @@ class LocalFileSystem implements FileSystemInterface
      * @param string $container
      * @param array  $properties
      *
-     * @throws NotFoundException
+     * @throws NotImplementedException
      * @return void
      */
     public function updateContainerProperties($container, $properties = [])
     {
-        // does this folder exist?
-        if (!$this->folderExists($container, '')) {
-            throw new NotFoundException("Container '$container' does not exist.");
-        }
-        // update the file that holds folder properties
-//            $properties = json_encode($properties);
-//            $key = static::addContainerToName($container, '');
-//            $result = file_put_contents($key, $properties);
-//            if (false === $result) {
-//                throw InternalServerErrorException('Failed to create container properties.');
-//            }
+        throw new NotImplementedException('Updating container properties is not implemented for current file system.');
     }
 
     /**
@@ -425,25 +416,22 @@ class LocalFileSystem implements FileSystemInterface
      * @param string $path
      * @param array  $properties
      *
-     * @throws NotFoundException
+     * @throws NotImplementedException
      * @return void
      */
     public function updateFolderProperties($container, $path, $properties = [])
     {
-        $path = FileUtilities::fixFolderPath($path);
-        // does this folder exist?
-        if (!$this->folderExists($container, $path)) {
-            throw new NotFoundException("Folder '$path' does not exist.");
-        }
-        // update the file that holds folder properties
-//            $properties = json_encode($properties);
-//            $key = static::addContainerToName($container, $path);
-//            $result = file_put_contents($key, $properties);
-//            if (false === $result) {
-//                throw new InternalServerErrorException('Failed to create folder properties.');
-//            }
+        throw new NotImplementedException('Updating folder properties is not implemented for current file system.');
     }
 
+    /**
+     * @param string $container
+     * @param string $path
+     * @param bool   $force
+     * @param bool   $content_only
+     *
+     * @throws \Exception
+     */
     public function deleteFolder($container, $path, $force = false, $content_only = false)
     {
         $dir = static::addContainerToName($container, $path);
@@ -601,10 +589,12 @@ class LocalFileSystem implements FileSystemInterface
      * @param string $path
      * @param array  $properties
      *
+     * @throws NotImplementedException
      * @return void
      */
     public function updateFileProperties($container, $path, $properties = [])
     {
+        throw new NotImplementedException('Updating file properties is not implemented for current file system.');
     }
 
     /**
