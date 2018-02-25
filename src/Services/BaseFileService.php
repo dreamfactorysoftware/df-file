@@ -107,7 +107,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         }
 
         // Clean trailing slashes from paths
-        array_walk($this->publicPaths, function (&$value) {
+        array_walk($this->publicPaths, function (&$value){
             $value = rtrim($value, '/');
         });
 
@@ -149,17 +149,17 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
     public function createFolder($path, $properties = [])
     {
-         $this->driver->createFolder($this->container, $path, $properties);
+        $this->driver->createFolder($this->container, $path, $properties);
     }
 
     public function updateFolderProperties($path, $properties = [])
     {
-         $this->driver->updateFolderProperties($this->container, $path, $properties);
+        $this->driver->updateFolderProperties($this->container, $path, $properties);
     }
 
     public function copyFolder($dest_path, $src_container, $src_path, $check_exist = false)
     {
-         $this->driver->copyFolder($this->container, $dest_path, $src_container, $src_path, $check_exist);
+        $this->driver->copyFolder($this->container, $dest_path, $src_container, $src_path, $check_exist);
     }
 
     public function deleteFolders($folders, $root = '', $force = false)
@@ -169,7 +169,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
     public function deleteFolder($path, $force = false, $content_only = false)
     {
-         $this->driver->deleteFolder($this->container, $path, $force, $content_only);
+        $this->driver->deleteFolder($this->container, $path, $force, $content_only);
     }
 
     public function fileExists($path)
@@ -189,7 +189,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
     public function updateFileProperties($path, $properties = [])
     {
-         $this->driver->updateFileProperties($this->container, $path, $properties);
+        $this->driver->updateFileProperties($this->container, $path, $properties);
     }
 
     public function writeFile($path, $content, $content_is_base = true, $check_exist = false)
@@ -204,12 +204,12 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
     public function copyFile($dest_path, $sc_container, $src_path, $check_exist = false)
     {
-         $this->driver->copyFile($this->container, $dest_path, $sc_container, $src_path, $check_exist);
+        $this->driver->copyFile($this->container, $dest_path, $sc_container, $src_path, $check_exist);
     }
 
     public function deleteFile($path, $noCheck = false)
     {
-         $this->driver->deleteFile($this->container, $path, $noCheck);
+        $this->driver->deleteFile($this->container, $path, $noCheck);
     }
 
     public function deleteFiles($files, $root = null)
@@ -219,7 +219,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
     public function streamFile($path, $download = false)
     {
-         $this->driver->streamFile($this->container, $path, $download);
+        $this->driver->streamFile($this->container, $path, $download);
     }
 
     public function getFolderAsZip($path, $zip = null, $zipFileName = null, $overwrite = false)
@@ -233,7 +233,6 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
         return $this->driver->extractZipFile($this->container, $path, $zip, $clean, $drop_path);
     }
-
 
     /**
      * Sets the file system driver Local/S3/Azure/OStack...
@@ -361,6 +360,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     /**
      * Handles GET actions.
      *
+     * @throws \Exception
      * @return \DreamFactory\Core\Utility\ServiceResponse|StreamedResponse|array
      */
     protected function handleGET()
@@ -374,12 +374,19 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         if (empty($this->filePath)) {
             //Resource is the root/container or a folder
             if ($this->request->getParameterAsBool('zip')) {
-                $zipFileName = $this->driver->getFolderAsZip($this->container, $this->folderPath);
-                FileUtilities::sendFile($zipFileName, true);
-                unlink($zipFileName);
+                $zipFileName = '';
+                if (empty($this->container) && empty($this->folderPath)) {
+                    $zipFileName = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getName() . '_' . time() . '.zip';
+                }
+                $zipFileName = $this->driver->getFolderAsZip($this->container, $this->folderPath, null, $zipFileName);
+                $response = new StreamedResponse();
+                $response->setCallback(function () use ($zipFileName){
+                    $chunk = \Config::get('df.file_chunk_size');
+                    FileUtilities::sendFile($zipFileName, true, $chunk);
+                    unlink($zipFileName);
+                });
 
-                // output handled by file handler, short the response here
-                return ResponseFactory::create(null, null, null);
+                return $response;
             } elseif ($this->request->getParameterAsBool('include_properties')) {
                 $result = $this->driver->getFolderProperties($this->container, $this->folderPath);
             } else {
@@ -403,7 +410,11 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 $result = ResourcesWrapper::cleanResources($result, $asList, $idField, $fields, true);
             }
         } else {
-            //Resource is a file
+            // Resource is a file
+            // Check to see if file exists
+            if (!$this->driver->fileExists($this->container, $this->filePath)) {
+                throw new NotFoundException("The specified file '" . $this->filePath . "' was not found in storage.");
+            }
             if ($this->request->getParameterAsBool('include_properties', false)) {
                 // just properties of the file itself
                 $content = $this->request->getParameterAsBool('content', false);
@@ -414,7 +425,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 // stream the file using StreamedResponse, exits processing
                 $response = new StreamedResponse();
                 $service = $this;
-                $response->setCallback(function () use ($service, $download) {
+                $response->setCallback(function () use ($service, $download){
                     $service->streamFile($service->filePath, $download);
                 });
 
@@ -435,13 +446,11 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
      */
     protected function handlePOST()
     {
-        if (empty($this->filePath)) {
-            // create folders and files
-            // possible file handling parameters
-            $extract = $this->request->getParameterAsBool('extract', false);;
-            $clean = $this->request->getParameterAsBool('clean', false);
-            $checkExist = $this->request->getParameterAsBool('check_exist', false);
+        $extract = $this->request->getParameterAsBool('extract', false);
+        $clean = $this->request->getParameterAsBool('clean', false);
+        $checkExist = $this->request->getParameterAsBool('check_exist', false);
 
+        if (empty($this->filePath)) {
             $fileNameHeader = str_to_utf8($this->request->getHeader('X-File-Name'));
             $folderNameHeader = str_to_utf8($this->request->getHeader('X-Folder-Name'));
             $fileUrl = filter_var($this->request->getParameter('url', ''), FILTER_SANITIZE_URL);
@@ -486,9 +495,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     throw $ex;
                 }
             } elseif (null !== $uploadedFiles = $this->request->getFile('files')) {
-                // older html multi-part/form-data post, single or multiple files
-                $files = FileUtilities::rearrangePostedFiles($uploadedFiles);
-                $result = $this->handleFolderContentFromFiles($files, $extract, $clean, $checkExist);
+                if (Arr::isAssoc($uploadedFiles)) { //Single file upload
+                    $uploadedFiles = [$uploadedFiles];
+                }
+                $result = $this->handleFolderContentFromFiles($uploadedFiles, $extract, $clean, $checkExist);
                 $result = ResourcesWrapper::cleanResources($result);
             } else {
                 // possibly xml or json post either of files or folders to create, copy or move
@@ -504,12 +514,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         } else {
             // create the file
             // possible file handling parameters
-            $extract = $this->request->getParameterAsBool('extract', false);
-            $clean = $this->request->getParameterAsBool('clean', false);
-            $checkExist = $this->request->getParameterAsBool('check_exist', false);
             $name = basename($this->filePath);
             $path = (false !== strpos($this->filePath, '/')) ? dirname($this->filePath) : '';
             $files = $this->request->getFile('files');
+
             if (empty($files)) {
                 // direct load from posted data as content
                 // or possibly xml or json post of file properties create, copy or move
@@ -523,8 +531,9 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     $checkExist
                 );
             } else {
-                // older html multipart/form-data post, should be single file
-                $files = FileUtilities::rearrangePostedFiles($files);
+                if (Arr::isAssoc($files)) { // Single file upload
+                    $files = [$files];
+                }
                 if (1 < count($files)) {
                     throw new BadRequestException("Multiple files uploaded to a single REST resource '$name'.");
                 }
@@ -648,7 +657,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ) {
+    ){
         $ext = FileUtilities::getFileExtension($dest_name);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, $content);
@@ -698,7 +707,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $extract = false,
         $clean = false,
         $check_exist = false
-    ) {
+    ){
         $ext = FileUtilities::getFileExtension($source_file);
         if (empty($contentType)) {
             $contentType = FileUtilities::determineContentType($ext, '', $source_file);
@@ -785,7 +794,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $clean = false,
         /** @noinspection PhpUnusedParameterInspection */
         $checkExist = false
-    ) {
+    ){
         $out = [];
         if (!empty($data) && !Arr::isAssoc($data)) {
             foreach ($data as $key => $resource) {
@@ -932,16 +941,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'parameters'  => [
                         ApiOptions::documentOption(ApiOptions::AS_LIST),
                         ApiOptions::documentOption(ApiOptions::AS_ACCESS_LIST),
-                        ApiOptions::documentOption(ApiOptions::REFRESH),
                         [
                             'name'        => 'include_folders',
-                            'description' => 'Include folders in the returned listing.',
+                            'description' => 'Include folders in the returned listing. Default is true.',
                             'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
                         [
                             'name'        => 'include_files',
-                            'description' => 'Include files in the returned listing.',
+                            'description' => 'Include files in the returned listing. Default is true.',
                             'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
@@ -957,9 +965,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
+                        [
+                            'name'        => 'search',
+                            'description' => 'Search for file or folder by name.',
+                            'schema'      => ['type' => 'string'],
+                            'in'          => 'query',
+                        ],
                     ],
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/schemas/ResourceList']
+                        '200' => ['$ref' => '#/components/responses/ResourceResponse']
                     ],
                 ],
                 'post'   => [
@@ -992,14 +1006,20 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'query',
                         ],
                         [
-                            'name'        => 'X-HTTP-METHOD',
-                            'description' => 'Override request using POST to tunnel other http request, such as DELETE.',
-                            'schema'      => ['type' => 'string', 'enum' => ['GET', 'PUT', 'PATCH', 'DELETE']],
+                            'name'        => 'X-File-Name',
+                            'description' => 'File name to create.',
+                            'schema'      => ['type' => 'string'],
+                            'in'          => 'header',
+                        ],
+                        [
+                            'name'        => 'X-Folder-Name',
+                            'description' => 'Folder name to create.',
+                            'schema'      => ['type' => 'string'],
                             'in'          => 'header',
                         ],
                     ],
                     'requestBody' => [
-                        '$ref' => '#/components/requestBodies/FolderRequest'
+                        '$ref' => '#/components/requestBodies/FolderRequestPost'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
@@ -1010,10 +1030,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'description' => 'Post body as an array of folder properties.',
                     'operationId' => 'update' . $capitalized . 'ContainerProperties',
                     'requestBody' => [
-                        '$ref' => '#/components/requestBodies/FolderRequest'
+                        '$ref' => '#/components/requestBodies/SingleResourceRequest'
                     ],
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/responses/FolderResponse']
+                        '200' => ['$ref' => '#/components/responses/SuccessResponse']
                     ],
                 ],
                 'delete' => [
@@ -1037,6 +1057,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
+                        [
+                            'name'        => 'no_check',
+                            'description' => 'Set to true for not checking file existence.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                    ],
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/DeleteRequest'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
@@ -1068,13 +1097,13 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                         ],
                         [
                             'name'        => 'include_folders',
-                            'description' => 'Include folders in the returned listing.',
+                            'description' => 'Include folders in the returned listing. Default is true.',
                             'schema'      => ['type' => 'boolean', 'default' => true],
                             'in'          => 'query',
                         ],
                         [
                             'name'        => 'include_files',
-                            'description' => 'Include files in the returned listing.',
+                            'description' => 'Include files in the returned listing. Default is true.',
                             'schema'      => ['type' => 'boolean', 'default' => true],
                             'in'          => 'query',
                         ],
@@ -1090,9 +1119,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
+                        [
+                            'name'        => 'search',
+                            'description' => 'Search for file or folder by name.',
+                            'schema'      => ['type' => 'string'],
+                            'in'          => 'query',
+                        ],
                     ],
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/responses/FolderResponse']
+                        '200' => ['$ref' => '#/components/responses/ResourceResponse']
                     ],
                 ],
                 'post'       => [
@@ -1125,14 +1160,20 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'in'          => 'query',
                         ],
                         [
-                            'name'        => 'X-HTTP-METHOD',
-                            'description' => 'Override request using POST to tunnel other http request, such as DELETE.',
-                            'schema'      => ['type' => 'string', 'enum' => ['GET', 'PUT', 'PATCH', 'DELETE']],
+                            'name'        => 'X-File-Name',
+                            'description' => 'File name to create.',
+                            'schema'      => ['type' => 'string'],
+                            'in'          => 'header',
+                        ],
+                        [
+                            'name'        => 'X-Folder-Name',
+                            'description' => 'Folder name to create.',
+                            'schema'      => ['type' => 'string'],
                             'in'          => 'header',
                         ],
                     ],
                     'requestBody' => [
-                        '$ref' => '#/components/requestBodies/FolderRequest'
+                        '$ref' => '#/components/requestBodies/FolderRequestPost'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
@@ -1143,10 +1184,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'description' => 'Post body as an array of folder properties.',
                     'operationId' => 'update' . $capitalized . 'FolderProperties',
                     'requestBody' => [
-                        '$ref' => '#/components/requestBodies/FolderRequest'
+                        '$ref' => '#/components/requestBodies/SingleResourceRequest'
                     ],
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/responses/FolderResponse']
+                        '200' => ['$ref' => '#/components/responses/SuccessResponse']
                     ],
                 ],
                 'delete'     => [
@@ -1170,6 +1211,15 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
+                        [
+                            'name'        => 'no_check',
+                            'description' => 'Set to true for not checking file existence.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                    ],
+                    'requestBody' => [
+                        '$ref' => '#/components/requestBodies/DeleteRequest'
                     ],
                     'responses'   => [
                         '200' => ['$ref' => '#/components/responses/FolderResponse']
@@ -1189,9 +1239,28 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 'get'        => [
                     'summary'     => 'Download the file contents and/or its properties.',
                     'description' => 'By default, the file is streamed to the browser. ' .
-                        'Use the \'download\' parameter to prompt for download.',
+                        'Use the \'download\' parameter to prompt for download. Set \'include_properties\' ' .
+                        'to true to view file properties.',
                     'operationId' => 'get' . $capitalized . 'File',
                     'parameters'  => [
+                        [
+                            'name'        => 'include_properties',
+                            'description' => 'Only show file properties.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query'
+                        ],
+                        [
+                            'name'        => 'content',
+                            'description' => 'Show content (base64 encoded) when displaying file properties.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query'
+                        ],
+                        [
+                            'name'        => 'is_base64',
+                            'description' => 'Set this to false to show file content in plain text. Otherwise shown in base64 encoded.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query'
+                        ],
                         [
                             'name'        => 'download',
                             'description' => 'Prompt the user to download the file from the browser.',
@@ -1209,8 +1278,20 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'operationId' => 'create' . $capitalized . 'File',
                     'parameters'  => [
                         [
+                            'name'        => 'extract',
+                            'description' => 'Extract an uploaded zip file into the folder.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                        [
+                            'name'        => 'clean',
+                            'description' => 'Option when \'extract\' is true, clean the current folder before extracting files and folders.',
+                            'schema'      => ['type' => 'boolean'],
+                            'in'          => 'query',
+                        ],
+                        [
                             'name'        => 'check_exist',
-                            'description' => 'If true, the request fails when the file to create already exists.',
+                            'description' => 'If true, the request fails when the file or folder to create already exists.',
                             'schema'      => ['type' => 'boolean'],
                             'in'          => 'query',
                         ],
@@ -1219,7 +1300,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                         '$ref' => '#/components/requestBodies/FileRequest'
                     ],
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/responses/FileResponse']
+                        '200' => ['$ref' => '#/components/responses/NewFileResponse']
                     ],
                 ],
                 'put'        => [
@@ -1230,7 +1311,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                         '$ref' => '#/components/requestBodies/FileRequest'
                     ],
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/responses/FileResponse']
+                        '200' => ['$ref' => '#/components/responses/NewFileResponse']
                     ],
                 ],
                 'patch'      => [
@@ -1238,10 +1319,10 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'description' => 'Post body should be an array of file properties.',
                     'operationId' => 'update' . $capitalized . 'FileProperties',
                     'requestBody' => [
-                        '$ref' => '#/components/requestBodies/FileRequest'
+                        '$ref' => '#/components/requestBodies/SingleResourceRequest'
                     ],
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/responses/FileResponse']
+                        '200' => ['$ref' => '#/components/responses/SuccessResponse']
                     ],
                 ],
                 'delete'     => [
@@ -1249,7 +1330,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     'description' => 'Careful, this removes the given file from the storage.',
                     'operationId' => 'delete' . $capitalized . 'File',
                     'responses'   => [
-                        '200' => ['$ref' => '#/components/responses/FileResponse']
+                        '200' => ['$ref' => '#/components/responses/SingleResourceResponse']
                     ],
                 ],
             ],
@@ -1259,25 +1340,70 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     protected function getApiDocRequests()
     {
         return [
-            'FolderRequest' => [
+            'FolderRequest'         => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json'    => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderRequest']
+                    ],
+                    'application/xml'     => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderRequest']
+                    ],
+                    'multipart/form-data' => [
+                        'schema' => ['$ref' => '#/components/schemas/FileUploadRequest']
+                    ],
+                    'raw'                 => [
+                        'schema' => ['type' => 'string']
+                    ]
+                ],
+            ],
+            'FolderRequestPost'     => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json'    => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderRequestPost']
+                    ],
+                    'application/xml'     => [
+                        'schema' => ['$ref' => '#/components/schemas/FolderRequestPost']
+                    ],
+                    'multipart/form-data' => [
+                        'schema' => ['$ref' => '#/components/schemas/FileUploadRequest']
+                    ],
+                    'raw'                 => [
+                        'schema' => ['type' => 'string']
+                    ]
+                ],
+            ],
+            'SingleResourceRequest' => [
                 'description' => 'Resource List',
                 'content'     => [
                     'application/json' => [
-                        'schema' => ['$ref' => '#/components/schemas/FolderRequest']
+                        'schema' => ['$ref' => '#/components/schemas/SingleResourceRequest']
                     ],
                     'application/xml'  => [
-                        'schema' => ['$ref' => '#/components/schemas/FolderRequest']
+                        'schema' => ['$ref' => '#/components/schemas/SingleResourceRequest']
                     ],
                 ],
             ],
-            'FileRequest'   => [
+            'FileRequest'           => [
                 'description' => 'Resource List',
                 'content'     => [
+                    'multipart/form-data' => [
+                        'schema' => ['$ref' => '#/components/schemas/FileUploadRequest']
+                    ],
+                    'raw'                 => [
+                        'schema' => ['type' => 'string']
+                    ]
+                ],
+            ],
+            'DeleteRequest'         => [
+                'description' => 'Resource List to delete',
+                'content'     => [
                     'application/json' => [
-                        'schema' => ['$ref' => '#/components/schemas/FileRequest']
+                        'schema' => ['$ref' => '#/components/schemas/DeleteRequest']
                     ],
                     'application/xml'  => [
-                        'schema' => ['$ref' => '#/components/schemas/FileRequest']
+                        'schema' => ['$ref' => '#/components/schemas/DeleteRequest']
                     ],
                 ],
             ],
@@ -1287,7 +1413,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
     protected function getApiDocResponses()
     {
         return [
-            'FolderResponse' => [
+            'FolderResponse'         => [
                 'description' => 'Resource List',
                 'content'     => [
                     'application/json' => [
@@ -1298,7 +1424,18 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     ],
                 ],
             ],
-            'FileResponse'   => [
+            'SuccessResponse'        => [
+                'description' => 'Operation successful',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/SuccessResponse']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/SuccessResponse']
+                    ],
+                ]
+            ],
+            'FileResponse'           => [
                 'description' => 'Resource List',
                 'content'     => [
                     'application/json' => [
@@ -1306,6 +1443,39 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     ],
                     'application/xml'  => [
                         'schema' => ['$ref' => '#/components/schemas/FileResponse']
+                    ],
+                ],
+            ],
+            'NewFileResponse'        => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/NewFileResponse']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/NewFileResponse']
+                    ],
+                ],
+            ],
+            'ResourceResponse'       => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/ResourceResponse']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/ResourceResponse']
+                    ],
+                ],
+            ],
+            'SingleResourceResponse' => [
+                'description' => 'Resource List',
+                'content'     => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/File']
+                    ],
+                    'application/xml'  => [
+                        'schema' => ['$ref' => '#/components/schemas/File']
                     ],
                 ],
             ],
@@ -1314,56 +1484,55 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
 
     protected function getApiDocSchemas()
     {
+        $resourceWrapper = ResourcesWrapper::getWrapper();
         $commonFolder = [
-            'name'     => [
+            'name' => [
                 'type'        => 'string',
                 'description' => 'Identifier/Name for the folder, localized to requested resource.',
             ],
-            'path'     => [
+            'path' => [
                 'type'        => 'string',
                 'description' => 'Full path of the folder, from the service root.',
-            ],
-            'metadata' => [
-                'type'        => 'array',
-                'description' => 'An array of name-value pairs.',
-                'items'       => [
-                    'type' => 'string',
-                ],
-            ],
+            ]
         ];
 
         $commonFile = [
-            'name'         => [
+            'name' => [
                 'type'        => 'string',
                 'description' => 'Identifier/Name for the file, localized to requested resource.',
             ],
-            'path'         => [
+            'path' => [
                 'type'        => 'string',
                 'description' => 'Full path of the file, from the service root.',
-            ],
-            'content_type' => [
-                'type'        => 'string',
-                'description' => 'The media type of the content of the file.',
-            ],
-            'metadata'     => [
-                'type'        => 'array',
-                'description' => 'An array of name-value pairs.',
-                'items'       => [
-                    'type' => 'string',
-                ],
-            ],
+            ]
         ];
 
+        $commonResource = array_merge($commonFolder, [
+            'type'      => ['type' => 'string', 'description' => 'Type: file or folder'],
+            'content'   => [
+                'type'        => 'string',
+                'description' => 'File content in plain text and/or base64 encoded. Applicable to file only.'
+            ],
+            'is_base64' => [
+                'type'        => 'boolean',
+                'description' => 'Set to true if content is base64 encoded. Applicable to file only.'
+            ]
+        ]);
+
         $models = [
-            'FileRequest'    => [
+            'FileRequest'           => [
                 'type'       => 'object',
                 'properties' => $commonFile,
             ],
-            'FileResponse'   => [
+            'FileResponse'          => [
                 'type'       => 'object',
                 'properties' => array_merge(
                     $commonFile,
                     [
+                        'content_type'   => [
+                            'type'        => 'string',
+                            'description' => 'The media type of the content of the file.',
+                        ],
                         'content_length' => [
                             'type'        => 'string',
                             'description' => 'Size of the file in bytes.',
@@ -1372,48 +1541,140 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             'type'        => 'string',
                             'description' => 'A GMT date timestamp of when the file was last modified.',
                         ],
-                    ]
-                ),
-            ],
-            'FolderRequest'  => [
-                'type'       => 'object',
-                'properties' => array_merge(
-                    $commonFolder,
-                    [
-                        'resource' => [
-                            'type'        => 'array',
-                            'description' => 'An array of resources to operate on.',
-                            'items'       => [
-                                '$ref' => '#/components/schemas/FileRequest',
-                            ],
-                        ],
-                    ]
-                ),
-            ],
-            'FolderResponse' => [
-                'type'       => 'object',
-                'properties' => array_merge(
-                    $commonFolder,
-                    [
-                        'last_modified' => [
+                        'content'        => [
                             'type'        => 'string',
-                            'description' => 'A GMT date timestamp of when the file was last modified.',
-                        ],
-                        'resources'     => [
-                            'type'        => 'array',
-                            'description' => 'An array of contained resources.',
-                            'items'       => [
-                                '$ref' => '#/components/schemas/FileResponse',
-                            ],
-                        ],
+                            'description' => 'File content in plain text'
+                        ]
                     ]
                 ),
             ],
-            'File'           => [
+            'NewFileResponse'       => [
+                'type'       => 'object',
+                'properties' => array_merge(
+                    $commonFolder,
+                    [
+                        'type' => ['type' => 'string', 'description' => 'Type: file or folder']
+                    ]
+                )
+            ],
+            'FolderRequest'         => [
+                'type'       => 'object',
+                'properties' => [
+                    $resourceWrapper => [
+                        'type'        => 'array',
+                        'description' => 'An array of resources to operate on.',
+                        'items'       => [
+                            'type'       => 'object',
+                            'properties' => $commonResource
+                        ],
+                    ],
+                ],
+            ],
+            'FolderRequestPost'     => [
+                'type'       => 'object',
+                'properties' => [
+                    $resourceWrapper => [
+                        'type'        => 'array',
+                        'description' => 'An array of resources to operate on.',
+                        'items'       => [
+                            'type'       => 'object',
+                            'properties' => array_merge($commonResource, [
+                                'source_path' => [
+                                    'type'        => 'string',
+                                    'description' => 'Use this to copy a file/folder from its source.'
+                                ]
+                            ])
+                        ],
+                    ],
+                ],
+            ],
+            'SingleResourceRequest' => [
+                'type'       => 'object',
+                'properties' => $commonResource
+            ],
+            'FileUploadRequest'     => [
+                'type'       => 'object',
+                'properties' => [
+                    'files' => [
+                        'type'        => 'string',
+                        'format'      => 'binary',
+                        'description' => 'Use this for uploading binary file. Use files[] for multiple file upload.'
+                    ]
+                ]
+            ],
+            'SuccessResponse'       => [
+                'type'       => 'object',
+                'properties' => [
+                    'success' => ['type' => 'boolean']
+                ]
+            ],
+            'FolderResponse'        => [
+                'type'       => 'object',
+                'properties' => [
+                    $resourceWrapper => [
+                        'type'        => 'array',
+                        'description' => 'An array of resources',
+                        'items'       => [
+                            'type'       => 'object',
+                            'properties' => array_merge(
+                                $commonFolder,
+                                [
+                                    'type' => ['type' => 'string', 'description' => 'Type: file or folder']
+                                ]
+                            )
+                        ]
+                    ]
+                ],
+            ],
+            'DeleteRequest'         => [
+                'type'       => 'object',
+                'properties' => [
+                    $resourceWrapper => [
+                        'type'        => 'array',
+                        'description' => 'An array of resources',
+                        'items'       => [
+                            'type'       => 'object',
+                            'properties' => array_merge(
+                                $commonFolder,
+                                [
+                                    'type' => ['type' => 'string', 'description' => 'Type: file or folder']
+                                ]
+                            )
+                        ]
+                    ]
+                ],
+            ],
+            'ResourceResponse'      => [
+                'type'       => 'object',
+                'properties' => [
+                    $resourceWrapper => [
+                        'type'  => 'array',
+                        'items' => [
+                            'type'       => 'object',
+                            'properties' => array_merge($commonFile, [
+                                'type'           => ['type' => 'string', 'description' => 'Type: file or folder'],
+                                'content_type'   => [
+                                    'type'        => 'string',
+                                    'description' => 'The media type of the content of the file. Applicable to file only.',
+                                ],
+                                'content_length' => [
+                                    'type'        => 'string',
+                                    'description' => 'Size of the file in bytes. Applicable to file only.',
+                                ],
+                                'last_modified'  => [
+                                    'type'        => 'string',
+                                    'description' => 'A GMT date timestamp of when the file was last modified. Applicable to file only.',
+                                ],
+                            ])
+                        ]
+                    ]
+                ]
+            ],
+            'File'                  => [
                 'type'       => 'object',
                 'properties' => $commonFile,
             ],
-            'Folder'         => [
+            'Folder'                => [
                 'type'       => 'object',
                 'properties' => $commonFolder,
             ],
