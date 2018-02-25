@@ -3,8 +3,9 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+## [0.6.2] - 2018-02-25
 ### Fixed
-- Updated Swagger document for all storage services.
+- Updated Swagger document for all storage services
 
 ## [0.6.1] - 2018-01-25
 ### Added
