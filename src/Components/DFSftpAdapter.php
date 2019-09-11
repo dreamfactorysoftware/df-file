@@ -13,6 +13,9 @@ class DFSftpAdapter extends SftpAdapter
     public function getMetadata($path)
     {
         $connection = $this->getConnection();
+
+        if (empty($path)) $path = '/';
+
         $info = $connection->stat($path);
 
         if ($info === false) {
