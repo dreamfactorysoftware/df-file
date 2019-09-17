@@ -32,7 +32,7 @@
     "wiki":   "https://wiki.dreamfactory.com"
   },
   "require":     {
-    "dreamfactory/df-core": "~0.15.1",
+    "dreamfactory/df-core": "dev-laravel-upgrade",
     "league/flysystem-sftp": "^1.0",
     "league/flysystem-webdav": "^1.0"
   },
