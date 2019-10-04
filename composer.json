@@ -31,6 +31,8 @@
     "issues": "https://github.com/dreamfactorysoftware/df-file/issues",
     "wiki":   "https://wiki.dreamfactory.com"
   },
+  "minimum-stability": "dev",
+  "prefer-stable":     true,
   "require":     {
     "dreamfactory/df-core": "~0.15.1",
     "league/flysystem-sftp": "^1.0",
