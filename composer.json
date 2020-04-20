@@ -34,7 +34,7 @@
   "minimum-stability": "dev",
   "prefer-stable":     true,
   "require":     {
-    "dreamfactory/df-core": "~0.19.0",
+    "dreamfactory/df-core": "~0.19.1",
     "league/flysystem-sftp": "^1.0",
     "league/flysystem-webdav": "^1.0"
   },
