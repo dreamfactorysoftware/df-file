@@ -767,11 +767,12 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 );
                 $out[$key] = $tmp;
             } else {
-                $err[] = $name;
+                $err[$name] = $error;
             }
         }
         if (!empty($err)) {
-            $msg = 'Failed to upload the following files to folder ' . $this->folderPath . ': ' . implode(', ', $err);
+            $msg = 'Failed to upload the following files to folder ' . $this->folderPath . ': ' . implode(', ', array_keys($err)) .
+                '. Error codes are: ' . implode(', ', array_values($err)) . '. See https://www.php.net/manual/en/features.file-upload.errors.php';
             throw new InternalServerErrorException($msg);
         }
 
