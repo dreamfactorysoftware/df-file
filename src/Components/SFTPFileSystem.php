@@ -11,6 +11,10 @@ class SFTPFileSystem extends FTPFileSystem
      */
     protected function setAdapter($config)
     {
+        $config['privateKey'] = $config['private_key'];
+        unset($config['private_key']);
+        $config['hostFingerprint'] = $config['host_fingerprint'];
+        unset($config['host_fingerprint']);
         $this->adapter = new DFSftpAdapter($config);
     }
 
