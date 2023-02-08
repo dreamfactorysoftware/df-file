@@ -3,13 +3,31 @@
 namespace DreamFactory\Core\File\Components;
 
 use DreamFactory\Core\Contracts\FileSystemInterface;
-use DreamFactory\Core\Exceptions\InternalServerErrorException;
-use DreamFactory\Core\Exceptions\NotImplementedException;
-use DreamFactory\Core\Exceptions\NotFoundException;
 use DreamFactory\Core\Utility\FileUtilities;
-use League\Flysystem\Config;
-use DreamFactory\Core\Exceptions\BadRequestException;
 use Log;
+use DreamFactory\Core\Exceptions\ {
+    InternalServerErrorException,
+    NotImplementedException,
+    BadRequestException,
+    NotFoundException,
+};
+use League\Flysystem\ {
+    DirectoryAttributes,
+    StorageAttributes,
+    FileAttributes,
+    Config,
+};
+use League\Flysystem\ {
+    UnableToCheckFileExistence,
+    UnableToCheckExistence,
+    UnableToCreateDirectory,
+    UnableToDeleteDirectory, 
+    FilesystemException,
+    UnableToDeleteFile, 
+    UnableToWriteFile,
+    UnableToCopyFile,
+    UnableToReadFile,
+};
 
 abstract class BaseFlysystem implements FileSystemInterface
 {
@@ -19,9 +37,14 @@ abstract class BaseFlysystem implements FileSystemInterface
     protected $config;
 
     /**
-     * @var \League\Flysystem\AdapterInterface
+     * @var \League\Flysystem\FilesystemAdapter
      */
-    protected $adapter;
+    protected \League\Flysystem\FilesystemAdapter $adapter;
+
+    /**
+     * @var \League\Flysystem\FilesystemOperator
+     */
+    private \League\Flysystem\FilesystemOperator $fileSystem;
 
     /**
      * FileSystem constructor.
@@ -32,6 +55,7 @@ abstract class BaseFlysystem implements FileSystemInterface
     {
         $this->config = $config;
         $this->setAdapter($config);
+        $this->fileSystem = new \League\Flysystem\Filesystem($this->adapter);
     }
 
     /**
@@ -116,7 +140,11 @@ abstract class BaseFlysystem implements FileSystemInterface
      */
     public function folderExists($container, $path)
     {
-        return (!$this->adapter->has($path)) ? false : true;
+        try {
+            return empty($path) || $this->fileSystem->directoryExists($path);
+        } catch (FilesystemException | UnableToCheckExistence $exception) {
+            throw new InternalServerErrorException('Failed to retrieve folder properties.');
+        }
     }
 
     /**
@@ -126,67 +154,110 @@ abstract class BaseFlysystem implements FileSystemInterface
     {
         if ($this->folderExists($container, $path)) {
             $path = rtrim($path, '/');
-            $this->adapter->setRecurseManually($full_tree);
-            $contents = $this->adapter->listContents($path, $full_tree);
-            foreach ($contents as $key => $content) {
-                if (strtolower(array_get($content, 'type')) === 'dir') {
-                    $this->normalizeFolderInfo($content, $path);
-                } else {
-                    $this->normalizeFileInfo($content, $path);
-                }
-                $contents[$key] = $content;
-            }
-
-            return $contents;
+            $listing = $this->fileSystem->listContents($path, $full_tree)
+                ->filter(fn ($item) => 
+                    $item->isDir() && $include_folders ||
+                    $item->isFile() && $include_files
+                )
+                ->map(fn ($item) => $this->mapAttributesToInfoArray($item, $path))
+                ->toArray();
+            return $listing;
         } else {
             throw new NotFoundException("Folder '$path' does not exist in storage.");
         }
     }
 
     /**
-     * @param array  $folder
-     * @param string $localizer
-     *
-     * @throws \DreamFactory\Core\Exceptions\InternalServerErrorException
+     * Create an array with metadata for provided file or folder
+     * 
+     * @param \League\Flysystem\StorageAttributes $item File or folder to retrieve metadata from
+     * @param string $parentFolder Base path to exclude from item name
+     * 
+     * @return array
      */
-    protected function normalizeFolderInfo(array & $folder, $localizer)
+    protected function mapAttributesToInfoArray(StorageAttributes $item, string $parentFolder): array
     {
-        if (strtolower(array_get($folder, 'type')) !== 'dir') {
-            throw new InternalServerErrorException('Fatal error. Invalid folder info provided for normalization.');
+        $info = ['path' => $item->path()];
+        $this->normalizeName($info, $parentFolder);
+        if ($this->includeLastModified($item)) {
+            $info['last_modified'] = $this->lastModified($item);
         }
 
-        $path = array_get($folder, 'path');
-        $folder['path'] = FileUtilities::fixFolderPath($path);
-        $folder['name'] = trim(substr($path, strlen($localizer)), '/');
-        if (empty($folder['name'])) {
-            $folder['name'] = basename($path);
+        if ($item instanceof \League\Flysystem\FileAttributes) {
+            $info['type'] = 'file';
+            $info['content_type'] = $this->mimeType($item);
+            $info['content_length'] = $item->fileSize();
+        } elseif ($item instanceof \League\Flysystem\DirectoryAttributes) {
+            $info['type'] = 'folder';
+            $info['path'] = FileUtilities::fixFolderPath($info['path']);
         }
-        $folder['type'] = 'folder';
+
+        return $info;
     }
 
     /**
-     * @param array  $file
-     * @param string $localizer
-     *
-     * @throws \DreamFactory\Core\Exceptions\InternalServerErrorException
+     * Exclude base path from item name. Modifies input `$info` array
+     * 
+     * @param array &$info Item metadata array with `name` and `path` keys
+     * @param string $localizer Base path to exclude
+     * 
+     * @return void
      */
-    protected function normalizeFileInfo(array &$file, $localizer)
+    private function normalizeName(array & $info, string $localizer)
     {
-        if (strtolower(array_get($file, 'type')) !== 'file') {
-            throw new InternalServerErrorException('Fatal error. Invalid file info provided for normalization.');
+        $path = $info['path'];
+        $info['name'] = trim(substr($path, strlen($localizer)), '/');
+        if (empty($info['name'])) {
+            $info['name'] = basename($path);
         }
+    }
 
-        unset($file['visibility']);
-        $path = array_get($file, 'path');
-        $timestamp = $this->adapter->getTimestamp($path);
-        $file['name'] = trim(substr($path, strlen($localizer)), '/');
-        if (empty($file['name'])) {
-            $file['name'] = basename($path);
-        }
-        $file['last_modified'] = gmdate('D, d M Y H:i:s \G\M\T', array_get($timestamp, 'timestamp', 0));
-        $file['content_type'] = array_get($this->adapter->getMimetype($path), 'mimetype');
-        $file['content_length'] = array_get($file, 'size');
-        unset($file['size']);
+    /**
+     * Determine whether the entity includes lastModified metadata
+     * 
+     * @param \League\Flysystem\StorageAttributes $item The entity from which to read metadata
+     * 
+     * @return bool
+     */
+    protected function includeLastModified(StorageAttributes $item): bool
+    {
+        return !empty($item->lastModified());
+    }
+
+    /**
+     * Get lastModified file metadata in GMT time zone
+     * 
+     * @param \League\Flysystem\StorageAttributes $item The entity from which to read metadata
+     * 
+     * @return string
+     */
+    protected function lastModified(StorageAttributes $item): string
+    {
+        return gmdate('D, d M Y H:i:s \G\M\T', $item->lastModified() ?: 0);
+    }
+
+    /**
+     * Get file MIME type
+     * 
+     * @param \League\Flysystem\FileAttributes $file The file from which to read metadata
+     * 
+     * @return string
+     */
+    protected function mimeType(FileAttributes $file) : string
+    {
+        return $file->mimeType() ?: $this->detectMimeType($file->path());
+    }
+
+    /**
+     * Determine the MIME type of an entity
+     * 
+     * @param string $path 
+     * 
+     * @return string
+     */
+    protected function detectMimeType(string $path) : string
+    {
+        return $this->fileSystem->mimeType($path);
     }
 
     /**
@@ -195,17 +266,15 @@ abstract class BaseFlysystem implements FileSystemInterface
     public function getFolderProperties($container, $path)
     {
         $path = rtrim($path, '/');
-        $meta = $this->adapter->getMetadata($path);
-        if ($meta === false) {
-            throw new NotFoundException("Specified folder '" . $path . "' not found.");
-        }
-        if (array_get($meta, 'type') === 'dir') {
-            $this->normalizeFolderInfo($meta, $path);
-            unset($meta['type'], $meta['size'], $meta['visibility']);
-
-            return $meta;
+        if ($this->folderExists($container, $path)) {
+            $props = $this->mapAttributesToInfoArray(
+                $this->getCommonMetadata($path),
+                $path,
+            );
+            unset($props['type']);
+            return $props;
         } else {
-            throw new InternalServerErrorException('Fatal error. Invalid folder path provided.');
+            throw new NotFoundException("Specified folder '" . $path . "' not found.");
         }
     }
 
@@ -221,15 +290,12 @@ abstract class BaseFlysystem implements FileSystemInterface
             throw new BadRequestException("Folder '" . $path . "' already exists.");
         }
         $path = rtrim($path, '/');
-        $result = $this->adapter->createDir($path, new Config());
 
-        if ($result === false) {
+        try {
+            $this->adapter->createDirectory($path, new Config());
+        } catch (FilesystemException | UnableToCreateDirectory $exception) {
             throw new InternalServerErrorException("Failed to create folder '" . $path . "'.");
         }
-
-        $this->normalizeFolderInfo($result, $path);
-
-        return $result;
     }
 
     /**
@@ -271,18 +337,25 @@ abstract class BaseFlysystem implements FileSystemInterface
      */
     public function copyTree($src, $dst)
     {
-        $meta = $this->adapter->getMetadata($src);
-        if ($meta['type'] === 'dir' && $this->folderExists('', $src)) {
-            $this->adapter->ensureDirectory($dst);
-            $files = $this->adapter->listContents($src);
+        $meta = $this->getCommonMetadata($src);
+        $this->copyTreeRecursively($meta, $dst);    
+    }
+
+    /**
+     * @param StorageAttributes $src
+     * @param string            $dst
+     */
+    protected function copyTreeRecursively(StorageAttributes $src, string $dst)
+    {
+        if ($src->isFile()) {
+            $this->fileSystem->copy($src->path(), $dst);
+        } else {
+            $relevantRoot = FileUtilities::fixFolderPath($dst) . basename($src->path()); 
+            $this->fileSystem->createDirectory($relevantRoot);
+            $files = $this->fileSystem->listContents($src->path(), false);
             foreach ($files as $file) {
-                $path = array_get($file, 'path');
-                $srcFile = $path;
-                $dstFile = FileUtilities::fixFolderPath($dst) . basename($path);
-                $this->copyTree($srcFile, $dstFile);
+                $this->copyTreeRecursively($file, $relevantRoot . basename($file->path()));
             }
-        } elseif ($meta['type'] === 'file' && $this->fileExists('', $src)) {
-            $this->adapter->copy($src, $dst);
         }
     }
 
@@ -300,10 +373,8 @@ abstract class BaseFlysystem implements FileSystemInterface
             $this->deleteTree($path, !$content_only);
         } else {
             try {
-                if (!$this->adapter->deleteDir($path)) {
-                    throw new InternalServerErrorException("Failed to delete folder '" . $path . "'");
-                }
-            } catch (\Exception $e) {
+                $this->adapter->deleteDirectory($path);
+            } catch (FilesystemException | UnableToDeleteDirectory $exception) {
                 throw new InternalServerErrorException("Directory not empty, can not delete without force option.");
             }
         }
@@ -316,18 +387,15 @@ abstract class BaseFlysystem implements FileSystemInterface
     public function deleteTree($path, $delete_self = true)
     {
         $path = rtrim($path, '/');
-        $meta = $this->adapter->getMetadata($path);
-
-        if ($meta['type'] === 'dir') {
-            $contents = $this->adapter->listContents($path);
-            foreach ($contents as $content) {
-                $this->deleteTree($content['path']);
+        $meta = $this->getCommonMetadata($path);
+        
+        if ($meta->isDir()) {
+            $this->fileSystem->deleteDirectory($path);
+            if ( ! $delete_self) {
+                $this->fileSystem->createDirectory($path);
             }
-            if ($delete_self) {
-                $this->adapter->deleteDir($path);
-            }
-        } elseif ($meta['type'] === 'file') {
-            $this->adapter->delete($path);
+        } else {
+            $this->deleteFile(null, $path, true);
         }
     }
 
@@ -344,7 +412,11 @@ abstract class BaseFlysystem implements FileSystemInterface
      */
     public function fileExists($container, $path)
     {
-        return (!$this->adapter->has($path)) ? false : true;
+        try {
+            return $this->adapter->fileExists($path);
+        } catch (FilesystemException | UnableToCheckFileExistence $exception) {
+            throw new InternalServerErrorException('Failed to retrieve file properties.');
+        }
     }
 
     /**
@@ -361,26 +433,19 @@ abstract class BaseFlysystem implements FileSystemInterface
     public function getFileProperties($container, $path, $include_content = false, $content_as_base = true)
     {
         $path = rtrim($path, '/');
-        $meta = $this->adapter->getMetadata($path);
-        if ($meta === false) {
-            throw new NotFoundException("Specified file '" . $path . "' does not exist.");
-        } else {
-            $this->normalizeFileInfo($meta, $path);
-        }
+        $fileAttributes = $this->getFileAttributes($path);
+        $meta = $this->mapAttributesToInfoArray($fileAttributes, $path);
 
         if ($include_content) {
-            $streamObj = $this->adapter->readStream($path);
-            if ($streamObj !== false) {
-                $stream = array_get($streamObj, 'stream');
-                if (empty($stream)) {
-                    throw new InternalServerErrorException('Failed to retrieve file properties.');
-                }
-                $contents = fread($stream, array_get($meta, 'content_length'));
-                if ($content_as_base) {
-                    $contents = base64_encode($contents);
-                }
-                $meta['content'] = $contents;
+            try {
+                $contents = $this->adapter->read($path);
+            } catch (FilesystemException | UnableToReadFile $exception) {
+                throw new InternalServerErrorException('Failed to retrieve file properties.');
             }
+            if ($content_as_base) {
+                $contents = base64_encode($contents);
+            }
+            $meta['content'] = $contents;
         }
 
         unset($meta['type']);
@@ -393,51 +458,73 @@ abstract class BaseFlysystem implements FileSystemInterface
      */
     public function streamFile($container, $path, $download = false)
     {
-        try {
-            $result = $this->adapter->readStream($path);
-            $chunk = \Config::get('df.file_chunk_size');
-
-            if (!empty($path) && isset($result['stream'])) {
-                $file = basename($path);
-                $meta = $this->adapter->getMetadata($path);
-                $mimeType = array_get($this->adapter->getMimetype($path), 'mimetype');
-                $timestamp = array_get($this->adapter->getTimestamp($path), 'timestamp');
-                $stream = array_get($result, 'stream');
-
-                $ext = FileUtilities::getFileExtension($file);
-                $disposition = ($download) ? 'attachment; filename="' . $file . '";' : 'inline';
-                header('Last-Modified: ' . gmdate('D, d M Y H:i:s \G\M\T', $timestamp));
-                header('Content-Type: ' . $mimeType);
-                header('Content-Length:' . array_get($meta, 'size'));
-                if ($download || 'html' !== $ext) {
-                    header('Content-Disposition: ' . $disposition);
-                }
-                header('Cache-Control: private'); // use this to open files directly
-                header('Expires: 0');
-                header('Pragma: public');
-                if (empty($chunk)) {
-                    print(fread($stream, array_get($meta, 'size')));
-                } else {
-                    while (!feof($stream) and (connection_status() == 0)) {
-                        print(fread($stream, $chunk));
-                        flush();
-                    }
-                }
-            } else {
-                Log::debug('Failed to stream file: ' . $path);
-                $statusHeader = 'HTTP/1.1 404';
-                header($statusHeader);
-                header('Content-Type: text/html');
-                echo 'The specified file ' . $path . ' does not exist.';
-            }
-        } catch (\Exception $e) {
-            Log::debug('Failed to stream file: ' . $path);
+        if (empty($path)) {
+            Log::warning('Failed to stream file: ' . $path);
             $statusHeader = 'HTTP/1.1 404';
             header($statusHeader);
             header('Content-Type: text/html');
-            echo 'Could not open the specified file ' . $path;
-            echo $e->getMessage();
+            echo 'The specified file ' . $path . ' does not exist.';
+            return;
         }
+
+        try {
+            $fileAttributes = $this->getFileAttributes($path);    
+
+            $fileName = basename($path);
+            $ext = FileUtilities::getFileExtension($fileName);
+            $disposition = ($download) ? 'attachment; filename="' . $fileName . '";' : 'inline';
+
+            header('Cache-Control: no-cache, private');
+            header('Last-Modified: ' . $this->lastModified($fileAttributes));
+            header('Content-Type: ' . $this->mimeType($fileAttributes));
+            header('Content-Length:' . $fileAttributes->fileSize());
+            if ($download || 'html' !== $ext) {
+                header('Content-Disposition: ' . $disposition);
+            }
+            
+            if ($this->notModified($fileAttributes)) {
+                header('HTTP/1.1 304 Not Modified');
+                return;
+            }
+            
+            $chunk = \Config::get('df.file_chunk_size');
+            $stream = $this->fileSystem->readStream($path);
+            if (empty($chunk)) {
+                print(fread($stream, $fileAttributes->fileSize()));
+            } else {
+                while (!feof($stream) and (connection_status() == 0)) {
+                    print(fread($stream, $chunk));
+                    flush();
+                }
+            }
+        } catch (NotFoundException $ex) {
+            header('HTTP/1.1 404 Not Found');
+            echo 'Could not open the specified file ' . $path;
+            echo $ex->getMessage();
+        } catch (\Exception $ex) {
+            header('HTTP/1.1 500 Internal Server Error');
+            \Log::error('Failed to stream file: ' . $path);
+            \Log::error($ex->getMessage());
+            \Log::error($ex->getTraceAsString());
+        }
+    }
+
+    /**
+     * Checks if the file has not changed from the last request
+     * 
+     * @param FileAttributes $file
+     *
+     * @return bool
+     */
+    private function notModified(FileAttributes $file) : bool
+    {
+        $timestamp = $file->lastModified();
+        $ifModifiedSince = \Illuminate\Support\Arr::get($_SERVER, 'HTTP_IF_MODIFIED_SINCE');
+        return (
+            !empty($timestamp) && 
+            !empty($ifModifiedSince) && 
+            strtotime($ifModifiedSince) === $timestamp
+        );
     }
 
     /**
@@ -469,8 +556,9 @@ abstract class BaseFlysystem implements FileSystemInterface
             $content = base64_decode($content);
         }
 
-        $result = $this->adapter->write($path, $content, new Config());
-        if (false === $result) {
+        try {
+            $this->adapter->write($path, $content, new Config());
+        } catch (FilesystemException | UnableToWriteFile $exception) {
             throw new InternalServerErrorException('Failed to create file.');
         }
     }
@@ -515,7 +603,9 @@ abstract class BaseFlysystem implements FileSystemInterface
                 throw new BadRequestException("File '$dest_path' already exists.");
             }
         }
-        if (!$this->adapter->copy($src_path, $dest_path)) {
+        try {
+            $this->adapter->copy($src_path, $dest_path, new Config());
+        } catch (FilesystemException | UnableToCopyFile $exception) {
             throw new InternalServerErrorException('Failed to copy file from ' . $src_path . ' to ' . $dest_path);
         }
     }
@@ -528,7 +618,9 @@ abstract class BaseFlysystem implements FileSystemInterface
         if (!$noCheck && !$this->fileExists($container, $path)) {
             throw new NotFoundException("File '$path' was not found.");
         }
-        if (!$this->adapter->delete($path)) {
+        try {
+            $this->adapter->delete($path);
+        } catch (FilesystemException | UnableToDeleteFile $exception) {
             throw new InternalServerErrorException('Failed to delete file.');
         }
     }
@@ -623,30 +715,65 @@ abstract class BaseFlysystem implements FileSystemInterface
     {
         $path = rtrim($path, '/');
         if ($this->folderExists('', $path)) {
-            $files = $this->adapter->listContents($path);
-            if (empty($files)) {
+            $files = $this->fileSystem->listContents($path);
+            $isEmpty = true;
+            
+            foreach ($files as $file) {
+                $isEmpty = false;
+                if ($file->isDir()) {
+                    static::addTreeToZip($zip, $file->path());
+                } elseif ($file->isFile()) {
+                    $newPath = str_replace(DIRECTORY_SEPARATOR, '/', $file->path());
+                    $content = $this->fileSystem->read($newPath);                    
+                    if (!$zip->addFromString($file->path(), $content)) {
+                        throw new \Exception("Can not include file '$newPath' in zip file.");
+                    }
+                }
+            }
+            if ($isEmpty) {
                 $newPath = str_replace(DIRECTORY_SEPARATOR, '/', $path);
                 if (!$zip->addEmptyDir($newPath)) {
                     throw new \Exception("Can not include folder '$newPath' in zip file.");
                 }
-
-                return;
-            }
-            foreach ($files as $file) {
-                if ($file['type'] === 'dir') {
-                    static::addTreeToZip($zip, $file['path']);
-                } elseif ($file['type'] === 'file') {
-                    $newPath = str_replace(DIRECTORY_SEPARATOR, '/', $file['path']);
-                    $fileObj = $this->adapter->read($newPath);
-                    if (!empty($fileObj) && isset($fileObj['contents'])) {
-                        if (!$zip->addFromString($file['path'], $fileObj['contents'])) {
-                            throw new \Exception("Can not include file '$newPath' in zip file.");
-                        }
-                    } else {
-                        throw new InternalServerErrorException("Could not read file '" . $file . "'");
-                    }
-                }
             }
         }
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return StorageAttributes
+     * @throws NotFoundException
+     */
+    protected function getCommonMetadata(string $path): StorageAttributes
+    {
+        if ($this->fileExists(null, $path)) {
+            return new FileAttributes($path);
+        } elseif ($this->folderExists(null, $path)) {
+            return new DirectoryAttributes($path);
+        } else {
+            throw new NotFoundException("Invalid data provided. Specified path '" . $path . "' does not exist.");
+        }
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return FileAttributes
+     * @throws NotFoundException
+     */
+    protected function getFileAttributes(string $path): FileAttributes
+    {
+        if (!$this->fileSystem->fileExists($path)) {
+            throw new NotFoundException("Specified file '" . $path . "' does not exist.");
+        }
+        
+        return new FileAttributes(
+            $path, 
+            $this->fileSystem->fileSize($path),
+            null,
+            $this->fileSystem->lastModified($path),
+            $this->detectMimeType($path),
+        );
     }
 }

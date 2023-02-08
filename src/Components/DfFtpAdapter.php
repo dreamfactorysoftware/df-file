@@ -2,69 +2,29 @@
 
 namespace DreamFactory\Core\File\Components;
 
-use League\Flysystem\Adapter\Ftp;
+use League\Flysystem\Ftp\FtpAdapter;
+use League\Flysystem\Ftp\FtpConnectionOptions;
 
-class DfFtpAdapter extends Ftp
+class DfFtpAdapter extends FtpAdapter
 {
-    /**
-     * @inheritdoc
-     *
-     * @param string $directory
-     */
-    protected function listDirectoryContentsRecursive($directory)
+
+    public function __construct(array $config)
     {
-        $listing = $this->normalizeListing($this->ftpRawlist('-aln', $directory) ?: [], $directory);
-        $output = [];
-
-        foreach ($listing as $directory) {
-            $output[] = $directory;
-            if ($directory['type'] !== 'dir') {
-                continue;
-            }
-
-            $output = array_merge($output, $this->listDirectoryContentsRecursive($directory['path']));
-        }
-
-        return $output;
+        parent::__construct(
+            $this::buildFtpConnectionOptions($config)
+        );
     }
 
-    /**
-     * @param string $path
-     *
-     * @return array|bool
-     */
-    public function getMetadata($path)
+    private static function buildFtpConnectionOptions(array $config): FtpConnectionOptions
     {
-        $connection = $this->getConnection();
-
-        if ($path === '') {
-            return ['type' => 'dir', 'path' => ''];
-        }
-
-        if (@ftp_chdir($connection, $path) === true) {
-            $this->setConnectionRoot();
-
-            return ['type' => 'dir', 'path' => $path];
-        }
-
-        $listing = $this->ftpRawlist('-A', str_replace('*', '\\*', $path));
-
-        if (empty($listing) || in_array('total 0', $listing, true)) {
-            return false;
-        }
-
-        if (preg_match('/.* not found/', $listing[0])) {
-            return false;
-        }
-
-        if (preg_match('/^total [0-9]*$/', $listing[0])) {
-            array_shift($listing);
-        }
-
-        $filename = basename($path);
-        $basePath = str_replace($filename, null, $path);
-        $basePath = rtrim($basePath, '/');
-
-        return $this->normalizeObject($listing[0], $basePath);
+        $options = array_merge(
+            [
+                'recurseManually' => true,
+                'timestampsOnUnixListingsEnabled' => true
+            ],
+            $config
+        );
+        return FtpConnectionOptions::fromArray($options);
     }
+
 }

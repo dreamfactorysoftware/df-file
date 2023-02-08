@@ -8,6 +8,7 @@ use DreamFactory\Core\Contracts\FileSystemInterface;
 use DreamFactory\Core\Exceptions\NotFoundException;
 use DreamFactory\Core\Exceptions\BadRequestException;
 use DreamFactory\Core\Exceptions\InternalServerErrorException;
+use Illuminate\Support\Arr;
 
 /**
  * Class LocalFileSystem
@@ -71,7 +72,7 @@ class LocalFileSystem implements FileSystemInterface
                 $result = ['name' => $file, 'path' => $file];
                 if ($include_properties) {
                     $temp = stat($dir);
-                    $result['last_modified'] = gmdate(static::TIMESTAMP_FORMAT, array_get($temp, 'mtime', 0));
+                    $result['last_modified'] = gmdate(static::TIMESTAMP_FORMAT, Arr::get($temp, 'mtime', 0));
                 }
 
                 $out[] = $result;
@@ -134,7 +135,7 @@ class LocalFileSystem implements FileSystemInterface
      */
     public function createContainer($properties = [], $check_exist = false)
     {
-        $container = array_get($properties, 'name', array_get($properties, 'path'));
+        $container = Arr::get($properties, 'name', Arr::get($properties, 'path'));
         if (empty($container)) {
             throw new BadRequestException('No name found for container in create request.');
         }
@@ -239,7 +240,7 @@ class LocalFileSystem implements FileSystemInterface
             foreach ($containers as $key => $folder) {
                 try {
                     // path is full path, name is relative to root, take either
-                    $name = array_get($folder, 'name', trim(array_get($folder, 'path'), '/'));
+                    $name = Arr::get($folder, 'name', trim(Arr::get($folder, 'path'), '/'));
                     if (!empty($name)) {
                         $this->deleteContainer($name, $force);
                     } else {
@@ -328,7 +329,7 @@ class LocalFileSystem implements FileSystemInterface
         $out = ['name' => basename($path), 'path' => $path];
         $dirPath = static::addContainerToName($container, $path);
         $temp = stat($dirPath);
-        $out['last_modified'] = gmdate(static::TIMESTAMP_FORMAT, array_get($temp, 'mtime', 0));
+        $out['last_modified'] = gmdate(static::TIMESTAMP_FORMAT, Arr::get($temp, 'mtime', 0));
 
         return $out;
     }
@@ -453,12 +454,12 @@ class LocalFileSystem implements FileSystemInterface
         foreach ($folders as $key => $folder) {
             try {
                 // path is full path, name is relative to root, take either
-                $path = array_get($folder, 'path');
+                $path = Arr::get($folder, 'path');
                 if (!empty($path)) {
                     $dir = static::asFullPath($path);
                     FileUtilities::deleteTree($dir, $force);
                 } else {
-                    $name = array_get($folder, 'name');
+                    $name = Arr::get($folder, 'name');
                     if (!empty($name)) {
                         $path = $root . $name;
                         $this->deleteFolder($container, $path, $force);
@@ -549,8 +550,8 @@ class LocalFileSystem implements FileSystemInterface
             'path'           => $path,
             'name'           => $shortName,
             'content_type'   => FileUtilities::determineContentType($ext, '', $file),
-            'last_modified'  => gmdate('D, d M Y H:i:s \G\M\T', array_get($temp, 'mtime', 0)),
-            'content_length' => array_get($temp, 'size', 0)
+            'last_modified'  => gmdate('D, d M Y H:i:s \G\M\T', Arr::get($temp, 'mtime', 0)),
+            'content_length' => Arr::get($temp, 'size', 0)
         ];
         if ($include_content) {
             $contents = file_get_contents($file);
@@ -744,7 +745,7 @@ class LocalFileSystem implements FileSystemInterface
         foreach ($files as $key => $fileInfo) {
             try {
                 // path is full path, name is relative to root, take either
-                $path = array_get($fileInfo, 'path');
+                $path = Arr::get($fileInfo, 'path');
                 if (!empty($path)) {
                     $file = static::asFullPath($path, true);
                     if (!is_file($file)) {
@@ -754,7 +755,7 @@ class LocalFileSystem implements FileSystemInterface
                         throw new InternalServerErrorException("Failed to delete file '$path'.");
                     }
                 } else {
-                    $name = array_get($fileInfo, 'name');
+                    $name = Arr::get($fileInfo, 'name');
                     if (!empty($name)) {
                         $path = $root . $name;
                         $this->deleteFile($container, $path);
@@ -943,7 +944,7 @@ class LocalFileSystem implements FileSystemInterface
                     $stat = stat($key);
                     $out[] = [
                         'path'          => str_replace(DIRECTORY_SEPARATOR, '/', $local) . '/',
-                        'last_modified' => gmdate('D, d M Y H:i:s \G\M\T', array_get($stat, 'mtime', 0))
+                        'last_modified' => gmdate('D, d M Y H:i:s \G\M\T', Arr::get($stat, 'mtime', 0))
                     ];
                     if (empty($delimiter)) {
                         $out = array_merge($out, static::listTree($root, $local . DIRECTORY_SEPARATOR));
@@ -954,8 +955,8 @@ class LocalFileSystem implements FileSystemInterface
                     $out[] = [
                         'path'           => str_replace(DIRECTORY_SEPARATOR, '/', $local),
                         'content_type'   => FileUtilities::determineContentType($ext, '', $key),
-                        'last_modified'  => gmdate('D, d M Y H:i:s \G\M\T', array_get($stat, 'mtime', 0)),
-                        'content_length' => array_get($stat, 'size', 0)
+                        'last_modified'  => gmdate('D, d M Y H:i:s \G\M\T', Arr::get($stat, 'mtime', 0)),
+                        'content_length' => Arr::get($stat, 'size', 0)
                     ];
                 } else {
                     error_log($key);

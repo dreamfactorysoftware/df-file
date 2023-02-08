@@ -59,7 +59,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         ];
         parent::__construct($settings);
 
-        $this->publicPaths = (array)array_get($this->config, 'public_path');
+        $this->publicPaths = (array)Arr::get($this->config, 'public_path');
         $this->setDriver($this->config);
     }
 
@@ -537,7 +537,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 if (1 < count($files)) {
                     throw new BadRequestException("Multiple files uploaded to a single REST resource '$name'.");
                 }
-                $file = array_get($files, 0);
+                $file = Arr::get($files, 0);
                 if (empty($file)) {
                     throw new BadRequestException("No file uploaded to REST resource '$name'.");
                 }
@@ -799,12 +799,12 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $out = [];
         if (!empty($data) && !Arr::isAssoc($data)) {
             foreach ($data as $key => $resource) {
-                switch (array_get($resource, 'type')) {
+                switch (Arr::get($resource, 'type')) {
                     case 'folder':
-                        $name = array_get($resource, 'name', '');
-                        $srcPath = array_get($resource, 'source_path');
+                        $name = Arr::get($resource, 'name', '');
+                        $srcPath = Arr::get($resource, 'source_path');
                         if (!empty($srcPath)) {
-                            $srcContainer = array_get($resource, 'source_container', $this->container);
+                            $srcContainer = Arr::get($resource, 'source_container', $this->container);
                             // copy or move
                             if (empty($name)) {
                                 $name = FileUtilities::getNameFromPath($srcPath);
@@ -823,7 +823,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                             }
                         } else {
                             $fullPathName = $this->folderPath . $name . '/';
-                            $content = array_get($resource, 'content', '');
+                            $content = Arr::get($resource, 'content', '');
                             $isBase64 = array_get_bool($resource, 'is_base64');
                             if ($isBase64) {
                                 $content = base64_decode($content);
@@ -837,11 +837,11 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                         }
                         break;
                     case 'file':
-                        $name = array_get($resource, 'name', '');
-                        $srcPath = array_get($resource, 'source_path');
+                        $name = Arr::get($resource, 'name', '');
+                        $srcPath = Arr::get($resource, 'source_path');
                         if (!empty($srcPath)) {
                             // copy or move
-                            $srcContainer = array_get($resource, 'source_container', $this->container);
+                            $srcContainer = Arr::get($resource, 'source_container', $this->container);
                             if (empty($name)) {
                                 $name = FileUtilities::getNameFromPath($srcPath);
                             }
@@ -859,7 +859,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                         } elseif (isset($resource['content'])) {
                             $fullPathName = $this->folderPath . $name;
                             $out[$key] = ['name' => $name, 'path' => $fullPathName, 'type' => 'file'];
-                            $content = array_get($resource, 'content', '');
+                            $content = Arr::get($resource, 'content', '');
                             $isBase64 = array_get_bool($resource, 'is_base64');
                             if ($isBase64) {
                                 $content = base64_decode($content);
@@ -892,8 +892,8 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $out = [];
         if (!empty($data)) {
             foreach ($data as $key => $resource) {
-                $path = array_get($resource, 'path');
-                $name = array_get($resource, 'name');
+                $path = Arr::get($resource, 'path');
+                $name = Arr::get($resource, 'name');
 
                 if (!empty($path)) {
                     $fullPath = $path;
@@ -905,7 +905,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     }
                 }
 
-                switch (array_get($resource, 'type')) {
+                switch (Arr::get($resource, 'type')) {
                     case 'file':
                         $out[$key] = ['name' => $name, 'path' => $path, 'type' => 'file'];
                         try {
