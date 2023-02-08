@@ -8,6 +8,8 @@ use DreamFactory\Core\Exceptions\DfException;
 use DreamFactory\Core\Exceptions\NotFoundException;
 use DreamFactory\Core\Exceptions\BadRequestException;
 use DreamFactory\Core\Exceptions\InternalServerErrorException;
+use DreamFactory\Core\Exceptions\NotImplementedException;
+use Illuminate\Support\Arr;
 
 /**
  * Class RemoteFileSystem
@@ -86,7 +88,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
             foreach ($containers as $key => $folder) {
                 try {
                     // path is full path, name is relative to root, take either
-                    $name = array_get($folder, 'name', trim(array_get($folder, 'path'), '/'));
+                    $name = Arr::get($folder, 'name', trim(Arr::get($folder, 'path'), '/'));
                     if (!empty($name)) {
                         $this->deleteContainer($name, $force);
                     } else {
@@ -144,7 +146,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
             }
             $results = $this->listBlobs($container, $path, $delimiter);
             foreach ($results as $data) {
-                $fullPathName = array_get($data, 'name');
+                $fullPathName = Arr::get($data, 'name');
                 $data['path'] = $fullPathName;
                 $data['name'] = rtrim(substr($fullPathName, strlen($path)), '/');
                 if ('/' == substr($fullPathName, -1)) {
@@ -268,7 +270,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
         $blobs = $this->listBlobs($src_container, $src_path);
         if (!empty($blobs)) {
             foreach ($blobs as $blob) {
-                $srcName = array_get($blob, 'name');
+                $srcName = Arr::get($blob, 'name');
                 if ((0 !== strcasecmp($src_path, $srcName))) {
                     // not self properties blob
                     $name = FileUtilities::getNameFromPath($srcName);
@@ -322,7 +324,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
                     throw new BadRequestException("Folder '$path' contains other files or folders.");
                 }
                 foreach ($blobs as $blob) {
-                    $name = array_get($blob, 'name');
+                    $name = Arr::get($blob, 'name');
                     $this->deleteBlob($container, $name);
                 }
             }
@@ -347,8 +349,8 @@ abstract class RemoteFileSystem implements FileSystemInterface
         foreach ($folders as $key => $folder) {
             try {
                 // path is full path, name is relative to root, take either
-                $path = array_get($folder, 'path');
-                $name = array_get($folder, 'name');
+                $path = Arr::get($folder, 'path');
+                $name = Arr::get($folder, 'name');
                 if (!empty($path)) {
                     $path = static::removeContainerFromPath($container, $path);
                 } elseif (!empty($name)) {
@@ -460,7 +462,60 @@ abstract class RemoteFileSystem implements FileSystemInterface
     public function streamFile($container, $path, $download = false)
     {
         $params = ($download) ? ['disposition' => 'attachment'] : [];
-        $this->streamBlob($container, $path, $params);
+        try {
+            $this->streamBlob($container, $path, $params);
+            \Log::warning('Using deprecated method - "' . __FUNCTION__ . '"');
+        } catch (NotImplementedException $e) {
+            $this->streamBlobIfModified($container, $path, $params);
+        }
+    }
+
+    private function streamBlobIfModified($container, $path, $params)
+    {
+        try {
+            $properties = $this->getBlobProperties($container, $path);
+
+            header('Cache-Control: no-cache, private');
+            header('Last-Modified: ' . $properties['last_modified']);
+            header('Content-Type: ' . $properties['content_type']);
+
+            $disposition =
+                (isset($params['disposition']) && !empty($params['disposition'])) ? $params['disposition']
+                : 'inline';
+
+            header('Content-Disposition: ' . $disposition . '; filename="' . $properties['name'] . '";');
+
+            if ($this->isNotModified($properties['last_modified'])) {
+                header('HTTP/1.1 304 Not Modified');
+                return;
+            }
+
+            header('Content-Length:' . $properties['content_length']);
+            $chunkSize = \Config::get('df.file_chunk_size');
+            foreach ($this->getBlobInChunks($container, $path, $chunkSize) as $dataChunk) {
+                print($dataChunk);
+                flush();
+            }
+        } catch (NotFoundException $ex) {
+            header('HTTP/1.1 404 Not Found');
+            echo 'Could not open the specified file ' . $path;
+            echo $ex->getMessage();
+        } catch (\Exception $ex) {
+            header('HTTP/1.1 500 Internal Server Error');
+            \Log::error('Failed to stream file: ' . $path);
+            \Log::error($ex->getMessage());
+            \Log::error($ex->getTraceAsString());
+        }
+    }
+
+    private function isNotModified(string $lastModified): bool
+    {
+        $ifModifiedSince = Arr::get($_SERVER, 'HTTP_IF_MODIFIED_SINCE');
+        return (
+            !empty($lastModified) &&
+            !empty($ifModifiedSince) &&
+            strtotime($ifModifiedSince) === strtotime($lastModified)
+        );
     }
 
     /**
@@ -616,8 +671,8 @@ abstract class RemoteFileSystem implements FileSystemInterface
         foreach ($files as $key => $file) {
             try {
                 // path is full path, name is relative to root, take either
-                $path = array_get($file, 'path');
-                $name = array_get($file, 'name');
+                $path = Arr::get($file, 'path');
+                $name = Arr::get($file, 'name');
                 if (!empty($path)) {
                     $path = static::removeContainerFromPath($container, $path);
                 } elseif (!empty($name)) {
@@ -680,7 +735,7 @@ abstract class RemoteFileSystem implements FileSystemInterface
             $zip->addEmptyDir($path);
         } else {
             foreach ($results as $blob) {
-                $fullPathName = array_get($blob, 'name');
+                $fullPathName = Arr::get($blob, 'name');
                 $shortName = substr_replace($fullPathName, '', 0, strlen($path));
                 if (empty($shortName)) {
                     continue;
@@ -767,8 +822,8 @@ abstract class RemoteFileSystem implements FileSystemInterface
 
         $result = $this->getFolder($this->container, '', true, true, false, $includeProperties);
 
-        $folders = array_get($result, 'folder', []);
-        $files = array_get($result, 'file', []);
+        $folders = Arr::get($result, 'folder', []);
+        $files = Arr::get($result, 'file', []);
 
         foreach ($folders as $folder) {
             $folder['path'] = trim($folder['path'], '/');
@@ -891,10 +946,28 @@ abstract class RemoteFileSystem implements FileSystemInterface
      * @param string $container
      * @param string $name
      * @param array  $params
+     * @deprecated streamBlob is deprecated. 
+     * Extenders must implement `getBlobInChunks` instead.
      *
      * @throws \Exception
      */
-    abstract public function streamBlob($container, $name, $params = []);
+    public function streamBlob($container, $name, $params = [])
+    {
+        throw new NotImplementedException('Use getBlobInChunks instead');
+    }
+
+    /**
+     * @param string $container
+     * @param string $name
+     * @param int $chunkSize
+     * 
+     * @return \Generator of blob chunks of `$chunkSize`
+     *
+     */
+    protected function getBlobInChunks($container, $name, $chunkSize): \Generator
+    {
+        throw new NotImplementedException('Implement this method instead of streamBlob');
+    }
 
     /**
      * @param string $container

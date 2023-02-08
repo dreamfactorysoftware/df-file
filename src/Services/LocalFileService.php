@@ -5,6 +5,7 @@ namespace DreamFactory\Core\File\Services;
 use DreamFactory\Core\File\Components\LocalFileSystem;
 use DreamFactory\Core\Exceptions\InternalServerErrorException;
 use DreamFactory\Core\Utility\Session;
+use Illuminate\Support\Arr;
 
 class LocalFileService extends BaseFileService
 {
@@ -26,7 +27,7 @@ class LocalFileService extends BaseFileService
     protected function setDriver($config)
     {
         $this->container = '';
-        $root = array_get($config, 'container');
+        $root = Arr::get($config, 'container');
         //  Replace any private lookups
         Session::replaceLookups($root, true);
         // local is the old Laravel config "disk" that may still be configured
