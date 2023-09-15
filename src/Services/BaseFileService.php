@@ -12,6 +12,7 @@ use DreamFactory\Core\Services\BaseRestService;
 use DreamFactory\Core\Utility\FileUtilities;
 use DreamFactory\Core\Utility\ResourcesWrapper;
 use DreamFactory\Core\Utility\ResponseFactory;
+use DreamFactory\Core\Utility\Session;
 use DreamFactory\Core\Enums\Verbs;
 use Illuminate\Support\Arr;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -406,6 +407,17 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                 $asList = $this->request->getParameterAsBool(ApiOptions::AS_LIST);
                 $idField = $this->request->getParameter(ApiOptions::ID_FIELD, static::getResourceIdentifier());
                 $fields = $this->request->getParameter(ApiOptions::FIELDS, ApiOptions::FIELDS_ALL);
+
+                if ($this->request->getParameterAsBool('user_permission', false)) {
+                  $service = $this->request->getService();
+                  $component = $this->request->getResource();
+                  $requestor = $this->request->getRequestorType();
+
+                  $mask = Session::getServicePermissions($service, $component, $requestor);
+                  // dd(count($result));
+                  $userPermission = array(count($result) => array('user_permission' => $mask));
+                  $result += $userPermission;
+                }
 
                 $result = ResourcesWrapper::cleanResources($result, $asList, $idField, $fields, true);
             }
