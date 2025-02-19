@@ -9,6 +9,12 @@ use Illuminate\Support\Arr;
 
 class LocalFileService extends BaseFileService
 {
+    public function __construct($settings = [])
+    {
+        self::isValidPath($settings);
+        parent::__construct($settings);
+    }
+
     protected static function isRelativePath($path)
     {
         if (0 === substr_compare(PHP_OS, 'WIN', 0, 3, true)) {
@@ -22,6 +28,21 @@ class LocalFileService extends BaseFileService
         }
 
         return true;
+    }
+
+    protected static function isValidPath($settings)
+    {
+        $root = Arr::get(Arr::get($settings, 'config'), 'container');
+        if (is_null($root)) {
+            return;
+        }
+        $disallowedDirs = ['/', '/bin', '/sbin', '/lib', '/lib64', '/lib32', '/libx32', '/dev', '/etc'];
+
+        foreach ($disallowedDirs as $dir) {
+            if (strpos($root . DIRECTORY_SEPARATOR, $dir . DIRECTORY_SEPARATOR) === 0) {
+                throw new InternalServerErrorException('Invalid root directory: ' . $dir . ' is not allowed.');
+            }
+        }
     }
 
     protected function setDriver($config)

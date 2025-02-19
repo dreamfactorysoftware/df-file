@@ -743,7 +743,7 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
         $out = [];
         $err = [];
         foreach ($files as $key => $file) {
-            $name = $file['name'];
+            $name = FileUtilities::sanitizeFileName($file['name']);
             $error = $file['error'];
             if ($error == UPLOAD_ERR_OK) {
                 $tmpName = $file['tmp_name'];
@@ -756,6 +756,9 @@ abstract class BaseFileService extends BaseRestService implements FileServiceInt
                     // Therefore, only using content-type from client as a fallback.
                     $contentType = $file['type'];
                 }
+
+                $valid = FileUtilities::validateFileSignature($tmpName, $contentType);
+                if (!$valid) {throw new InternalServerErrorException('File signature is not valid');}
                 $tmp = $this->handleFile(
                     $this->folderPath,
                     $name,
