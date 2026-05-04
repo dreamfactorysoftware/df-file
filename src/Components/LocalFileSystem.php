@@ -26,6 +26,44 @@ class LocalFileSystem implements FileSystemInterface
     //	Methods
     //*************************************************************************
 
+    /**
+     * Reject zip entry names that would escape the extraction target via
+     * traversal (`..`), absolute paths, drive letters, or null bytes.
+     *
+     * Returns true if the name is unsafe to extract.
+     */
+    public static function zipEntryEscapesTarget(string $name): bool
+    {
+        if ($name === '') {
+            return false; // empty entries skipped by caller
+        }
+        // NUL byte truncates many filesystem APIs
+        if (str_contains($name, "\0")) {
+            return true;
+        }
+        // Absolute path (Unix) or drive-letter (Windows)
+        if ($name[0] === '/' || $name[0] === '\\') {
+            return true;
+        }
+        if (strlen($name) >= 2 && ctype_alpha($name[0]) && $name[1] === ':') {
+            return true;
+        }
+        // Normalize separators and check segment-by-segment for ..
+        $normalized = str_replace('\\', '/', $name);
+        // Collapse any URL-encoded traversal that some unzippers honor
+        $decoded = rawurldecode($normalized);
+        if ($decoded !== $normalized) {
+            // After decode, recheck for traversal
+            $normalized = $decoded;
+        }
+        foreach (explode('/', $normalized) as $segment) {
+            if ($segment === '..') {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function __construct($root)
     {
         if (empty($root)) {
@@ -842,6 +880,17 @@ class LocalFileSystem implements FileSystemInterface
             if (!empty($drop_path)) {
                 $name = str_ireplace($drop_path, '', $name);
             }
+
+            // ZIP slip: zip entry names that contain '..' segments or
+            // start with '/' / a drive letter would let an extraction
+            // write OUTSIDE the intended container directory. Reject any
+            // entry whose normalized path escapes its target.
+            if (self::zipEntryEscapesTarget($name)) {
+                throw new InternalServerErrorException(
+                    "Refusing to extract zip entry with traversal in name: {$name}"
+                );
+            }
+
             $fullPathName = $path . $name;
             if ('/' === substr($fullPathName, -1)) {
                 $this->createFolder($container, $fullPathName, true, [], false);
