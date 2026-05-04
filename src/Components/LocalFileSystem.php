@@ -920,9 +920,65 @@ class LocalFileSystem implements FileSystemInterface
     private static function asFullPath($name, $includesFiles = false)
     {
         $appendage = ($name ? '/' . ltrim($name, '/') : null);
+        $resolved = static::$root . $appendage;
 
-        return static::$root . $appendage;
-        //return Platform::getStoragePath( $name, true, $includesFiles );
+        // Defense-in-depth: reject paths whose normalized form escapes
+        // the configured root. Without this, callers passing `..` segments
+        // through container/path could read or write outside the storage
+        // boundary even when the upstream resource layer is permissive.
+        // Returns a normalized form when safe.
+        return self::assertWithinRoot($resolved);
+    }
+
+    /**
+     * Reject any path that, after normalization, escapes static::$root.
+     * Used by every file-op call site through asFullPath().
+     *
+     * @throws InternalServerErrorException
+     */
+    private static function assertWithinRoot(string $candidate): string
+    {
+        $root = (string) static::$root;
+        if ($root === '') {
+            return $candidate;
+        }
+        // Lexically normalize: split into segments and resolve `..` and `.`
+        // without touching the filesystem (the file may not exist yet).
+        $normalized = self::lexicallyNormalize($candidate);
+        $rootNormalized = self::lexicallyNormalize($root);
+
+        if ($normalized !== $rootNormalized
+            && !str_starts_with($normalized, rtrim($rootNormalized, '/') . '/')
+        ) {
+            throw new InternalServerErrorException(
+                'File operation refused: path escapes the storage root.'
+            );
+        }
+        return $normalized;
+    }
+
+    /**
+     * Lexical (no-filesystem) path normalization that resolves `.` and
+     * `..` segments. Different from realpath() which fails on missing
+     * files and follows symlinks (the symlink-following is what we want
+     * to AVOID — symlinks are how attackers escape root).
+     */
+    private static function lexicallyNormalize(string $path): string
+    {
+        $isAbsolute = str_starts_with($path, '/') || str_starts_with($path, '\\');
+        $segments = preg_split('#[/\\\\]+#', $path);
+        $stack = [];
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($stack);
+                continue;
+            }
+            $stack[] = $segment;
+        }
+        return ($isAbsolute ? '/' : '') . implode('/', $stack);
     }
 
     /**
