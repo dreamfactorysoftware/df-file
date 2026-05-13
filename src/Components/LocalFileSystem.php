@@ -26,6 +26,44 @@ class LocalFileSystem implements FileSystemInterface
     //	Methods
     //*************************************************************************
 
+    /**
+     * Reject zip entry names that would escape the extraction target via
+     * traversal (`..`), absolute paths, drive letters, or null bytes.
+     *
+     * Returns true if the name is unsafe to extract.
+     */
+    public static function zipEntryEscapesTarget(string $name): bool
+    {
+        if ($name === '') {
+            return false; // empty entries skipped by caller
+        }
+        // NUL byte truncates many filesystem APIs
+        if (str_contains($name, "\0")) {
+            return true;
+        }
+        // Absolute path (Unix) or drive-letter (Windows)
+        if ($name[0] === '/' || $name[0] === '\\') {
+            return true;
+        }
+        if (strlen($name) >= 2 && ctype_alpha($name[0]) && $name[1] === ':') {
+            return true;
+        }
+        // Normalize separators and check segment-by-segment for ..
+        $normalized = str_replace('\\', '/', $name);
+        // Collapse any URL-encoded traversal that some unzippers honor
+        $decoded = rawurldecode($normalized);
+        if ($decoded !== $normalized) {
+            // After decode, recheck for traversal
+            $normalized = $decoded;
+        }
+        foreach (explode('/', $normalized) as $segment) {
+            if ($segment === '..') {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function __construct($root)
     {
         if (empty($root)) {
@@ -842,6 +880,17 @@ class LocalFileSystem implements FileSystemInterface
             if (!empty($drop_path)) {
                 $name = str_ireplace($drop_path, '', $name);
             }
+
+            // ZIP slip: zip entry names that contain '..' segments or
+            // start with '/' / a drive letter would let an extraction
+            // write OUTSIDE the intended container directory. Reject any
+            // entry whose normalized path escapes its target.
+            if (self::zipEntryEscapesTarget($name)) {
+                throw new InternalServerErrorException(
+                    "Refusing to extract zip entry with traversal in name: {$name}"
+                );
+            }
+
             $fullPathName = $path . $name;
             if ('/' === substr($fullPathName, -1)) {
                 $this->createFolder($container, $fullPathName, true, [], false);
@@ -871,9 +920,65 @@ class LocalFileSystem implements FileSystemInterface
     private static function asFullPath($name, $includesFiles = false)
     {
         $appendage = ($name ? '/' . ltrim($name, '/') : null);
+        $resolved = static::$root . $appendage;
 
-        return static::$root . $appendage;
-        //return Platform::getStoragePath( $name, true, $includesFiles );
+        // Defense-in-depth: reject paths whose normalized form escapes
+        // the configured root. Without this, callers passing `..` segments
+        // through container/path could read or write outside the storage
+        // boundary even when the upstream resource layer is permissive.
+        // Returns a normalized form when safe.
+        return self::assertWithinRoot($resolved);
+    }
+
+    /**
+     * Reject any path that, after normalization, escapes static::$root.
+     * Used by every file-op call site through asFullPath().
+     *
+     * @throws InternalServerErrorException
+     */
+    private static function assertWithinRoot(string $candidate): string
+    {
+        $root = (string) static::$root;
+        if ($root === '') {
+            return $candidate;
+        }
+        // Lexically normalize: split into segments and resolve `..` and `.`
+        // without touching the filesystem (the file may not exist yet).
+        $normalized = self::lexicallyNormalize($candidate);
+        $rootNormalized = self::lexicallyNormalize($root);
+
+        if ($normalized !== $rootNormalized
+            && !str_starts_with($normalized, rtrim($rootNormalized, '/') . '/')
+        ) {
+            throw new InternalServerErrorException(
+                'File operation refused: path escapes the storage root.'
+            );
+        }
+        return $normalized;
+    }
+
+    /**
+     * Lexical (no-filesystem) path normalization that resolves `.` and
+     * `..` segments. Different from realpath() which fails on missing
+     * files and follows symlinks (the symlink-following is what we want
+     * to AVOID — symlinks are how attackers escape root).
+     */
+    private static function lexicallyNormalize(string $path): string
+    {
+        $isAbsolute = str_starts_with($path, '/') || str_starts_with($path, '\\');
+        $segments = preg_split('#[/\\\\]+#', $path);
+        $stack = [];
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($stack);
+                continue;
+            }
+            $stack[] = $segment;
+        }
+        return ($isAbsolute ? '/' : '') . implode('/', $stack);
     }
 
     /**
