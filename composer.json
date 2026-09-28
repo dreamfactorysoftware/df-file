@@ -36,7 +36,7 @@
   "require":     {
     "php": "^8.3",
     "laravel/helpers": "^1.8",
-    "dreamfactory/df-core": "~1.0.4",
+    "dreamfactory/df-core": "~1.0.18",
     "league/flysystem-ftp": "^3.0",
     "league/flysystem-sftp-v3": "^3.0",
     "league/flysystem-webdav": "^3.0"
