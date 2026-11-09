@@ -4,6 +4,8 @@ namespace DreamFactory\Core\File\Models;
 
 use DreamFactory\Core\File\Components\SupportsFiles;
 use DreamFactory\Core\Models\BaseServiceConfigModel;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 
 class SFTPFileConfig extends BaseServiceConfigModel
 {
@@ -13,10 +15,10 @@ class SFTPFileConfig extends BaseServiceConfigModel
     protected $table = 'sftp_service_config';
 
     /** @var array */
-    protected $encrypted = ['password'];
+    protected $encrypted = ['password', 'passphrase', 'private_key'];
 
     /** @var array */
-    protected $protected = ['password'];
+    protected $protected = ['password', 'passphrase'];
 
     /** @var array */
     protected $fillable = [
@@ -27,7 +29,8 @@ class SFTPFileConfig extends BaseServiceConfigModel
         'password',
         'timeout',
         'host_fingerprint',
-        'private_key'
+        'private_key',
+        'passphrase'
     ];
 
     /** @var array */
@@ -36,6 +39,45 @@ class SFTPFileConfig extends BaseServiceConfigModel
         'port'       => 'integer',
         'timeout'    => 'integer'
     ];
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function decryptAttribute($key, &$value)
+    {
+        if ($key === 'private_key' && !is_null($value) && !$this->encryptedView) {
+            $value = $this->decryptPrivateKey($value);
+
+            return true;
+        }
+
+        return parent::decryptAttribute($key, $value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function addDecryptedAttributesToArray(array $attributes)
+    {
+        if (!$this->encryptedView && !empty($attributes['private_key'])) {
+            $privateKey = $this->decryptPrivateKey($attributes['private_key']);
+            unset($attributes['private_key']);
+
+            return array_merge(parent::addDecryptedAttributesToArray($attributes), ['private_key' => $privateKey]);
+        }
+
+        return parent::addDecryptedAttributesToArray($attributes);
+    }
+
+    private function decryptPrivateKey($value)
+    {
+        try {
+            return Crypt::decrypt($value);
+        } catch (DecryptException $e) {
+            // Older configurations stored a plaintext key or local file path.
+            return $value;
+        }
+    }
 
     /**
      * {@inheritdoc}
@@ -81,6 +123,11 @@ class SFTPFileConfig extends BaseServiceConfigModel
                 break;
             case 'private_key':
                 $schema['description'] = 'Private key (string or path to local file)';
+                break;
+            case 'passphrase':
+                $schema['label'] = 'Private Key Passphrase';
+                $schema['type'] = 'password';
+                $schema['description'] = 'Passphrase for an encrypted private key. Leave blank if the key is not encrypted.';
                 break;
         }
     }
