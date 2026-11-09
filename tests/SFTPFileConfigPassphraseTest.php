@@ -89,6 +89,7 @@ class SFTPFileConfigPassphraseTest extends \DreamFactory\Core\Testing\TestCase
         $this->assertContains('passphrase', $config->getEncryptable());
         $this->assertContains('passphrase', $config->getProtectable());
         $this->assertContains('private_key', $config->getEncryptable());
+        $this->assertContains('private_key', $config->getProtectable());
     }
 
     public function testPassphraseAndPrivateKeyEncryptedAtRest()
@@ -103,8 +104,10 @@ class SFTPFileConfigPassphraseTest extends \DreamFactory\Core\Testing\TestCase
         }
         $protected = SFTPFileConfig::getConfig($service->id);
         $this->assertSame('**********', $protected['passphrase']);
+        $this->assertSame('**********', $protected['private_key']);
         SFTPFileConfig::setConfig($service->id, $protected);
         $this->assertSame('s3cret', SFTPFileConfig::getConfig($service->id, null, false)['passphrase']);
+        $this->assertSame($this->encryptedKey, SFTPFileConfig::getConfig($service->id, null, false)['private_key']);
         $this->assertSame($this->encryptedKey, Crypt::decrypt(
             DB::table('sftp_service_config')->where('service_id', $service->id)->value('private_key')
         ));
@@ -150,7 +153,7 @@ class SFTPFileConfigPassphraseTest extends \DreamFactory\Core\Testing\TestCase
                 'private_key' => $privateKey
             ]);
             $this->assertSame($privateKey, SFTPFileConfig::getConfig($service->id, null, false)['private_key']);
-            $this->assertSame($privateKey, SFTPFileConfig::find($service->id)->private_key);
+            $this->assertSame('**********', SFTPFileConfig::find($service->id)->private_key); // protected, like password
             $provider = $this->serviceProvider($service);
             $this->assertSame($privateKey, $this->getNonPublicProperty($provider, 'privateKey'));
         }

@@ -18,7 +18,7 @@ class SFTPFileConfig extends BaseServiceConfigModel
     protected $encrypted = ['password', 'passphrase', 'private_key'];
 
     /** @var array */
-    protected $protected = ['password', 'passphrase'];
+    protected $protected = ['password', 'passphrase', 'private_key'];
 
     /** @var array */
     protected $fillable = [
